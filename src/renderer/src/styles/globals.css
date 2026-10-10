@@ -1,0 +1,361 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Brand fonts (Conduit): PP Neue Montreal for UI, Season Mix for display
+ * headings. Static weights, so ranges map in-between weights (semibold,
+ * font-[650]) onto the nearest cut instead of faux-bolding.
+ */
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('../assets/fonts/NeueMontreal-Book.woff2') format('woff2');
+  font-weight: 100 450;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('../assets/fonts/NeueMontreal-Italic.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('../assets/fonts/NeueMontreal-Medium.woff2') format('woff2');
+  font-weight: 451 640;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('../assets/fonts/NeueMontreal-Bold.woff2') format('woff2');
+  font-weight: 641 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Season Mix';
+  src: url('../assets/fonts/SeasonMix-Regular.woff2') format('woff2');
+  font-weight: 100 450;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Season Mix';
+  src: url('../assets/fonts/SeasonMix-Medium.woff2') format('woff2');
+  font-weight: 451 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * Design tokens (shadcn naming), taken from Conduit's brand: warm ink and
+ * coal neutrals, near-monochrome primary. Conduit blue is reserved for AI
+ * affordances (--brand*, Von Restorff) so they still stand out.
+ */
+:root {
+  --radius: 0.625rem;
+
+  --background: #ffffff;
+  --foreground: #29251e;
+  --card: #ffffff;
+  --card-foreground: #29251e;
+  --popover: #ffffff;
+  --popover-foreground: #29251e;
+  --primary: #28241e;
+  --primary-foreground: #ffffff;
+  --secondary: #f7f6f6;
+  --secondary-foreground: #29251e;
+  --muted: #f7f6f6;
+  --muted-foreground: #69655f;
+  --accent: #f1f0ee;
+  --accent-foreground: #29251e;
+  --destructive: #e43d32;
+  --border: #e6e4e0;
+  --input: #d9d7d1;
+  --ring: #a19d95;
+
+  --sidebar: #f7f6f6;
+  --sidebar-foreground: #29251e;
+  --sidebar-primary: #28241e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ecebe8;
+  --sidebar-accent-foreground: #29251e;
+  --sidebar-border: #e6e4e0;
+  --sidebar-ring: #a19d95;
+
+  /* App-specific */
+  --canvas: #eeede9;
+  --brand: #0091ff;
+  --brand-soft: rgb(0 145 255 / 0.1);
+  --brand-text: #0067e5;
+  --success: #17833a;
+  --faint: #99948c;
+  --page-shadow: 0 1px 3px rgb(41 37 30 / 0.1), 0 6px 24px rgb(41 37 30 / 0.06);
+
+  /*
+   * Bloom: the colors of Conduit's flower imagery and product data (status
+   * chips, chart segments, category markers). Accents only — small marks,
+   * dots and bars that carry meaning — never large areas of chrome.
+   */
+  --bloom-amber: #efb100;
+  --bloom-orange: #ff6803;
+  --bloom-ember: #ea5019;
+  --bloom-sky: #00b8ff;
+  --bloom-teal: #01bba7;
+  --bloom-green: #2cb686;
+  --bloom-pink: #f6339a;
+  --bloom-lilac: #8b8ce6;
+  --bloom-peach: #ffc5a9;
+  --bloom-gradient: linear-gradient(90deg, var(--bloom-amber), var(--bloom-orange) 30%, var(--bloom-pink) 58%, var(--bloom-lilac) 78%, var(--bloom-sky));
+
+  /* What each color means in this app. */
+  --kind-paper: var(--bloom-orange);
+  --kind-note: var(--bloom-green);
+  --status-unread: var(--bloom-sky);
+  --status-reading: var(--bloom-amber);
+  --status-read: var(--bloom-green);
+
+  --hl-yellow: rgb(255 200 0 / 0.42);
+  --hl-green: rgb(44 200 140 / 0.34);
+  --hl-blue: rgb(0 184 255 / 0.3);
+  --hl-pink: rgb(246 51 154 / 0.26);
+  --hl-purple: rgb(139 140 230 / 0.36);
+  --hl-yellow-solid: var(--bloom-amber);
+  --hl-green-solid: var(--bloom-green);
+  --hl-blue-solid: var(--bloom-sky);
+  --hl-pink-solid: var(--bloom-pink);
+  --hl-purple-solid: var(--bloom-lilac);
+}
+
+/* Dark: Conduit's coal (#28241e) and coal-elevated (#3a362f) surfaces. */
+.dark {
+  --background: #1d1a16;
+  --foreground: #f7f6f6;
+  --card: #231f1a;
+  --card-foreground: #f7f6f6;
+  --popover: #28241e;
+  --popover-foreground: #f7f6f6;
+  --primary: #f7f6f6;
+  --primary-foreground: #28241e;
+  --secondary: #2e2a24;
+  --secondary-foreground: #f7f6f6;
+  --muted: #2e2a24;
+  --muted-foreground: #aaa59c;
+  --accent: #3a362f;
+  --accent-foreground: #f7f6f6;
+  --destructive: #ff6568;
+  --border: rgb(255 255 255 / 0.1);
+  --input: rgb(255 255 255 / 0.15);
+  --ring: #77726a;
+
+  --sidebar: #181612;
+  --sidebar-foreground: #f7f6f6;
+  --sidebar-primary: #f7f6f6;
+  --sidebar-primary-foreground: #28241e;
+  --sidebar-accent: #2e2a24;
+  --sidebar-accent-foreground: #f7f6f6;
+  --sidebar-border: rgb(255 255 255 / 0.08);
+  --sidebar-ring: #77726a;
+
+  --canvas: #141210;
+  --brand: #0091ff;
+  --brand-soft: rgb(0 145 255 / 0.18);
+  --brand-text: #5eb0ef;
+  --success: #3cc46a;
+  --faint: #7d786f;
+  --page-shadow: 0 1px 3px rgb(0 0 0 / 0.5), 0 8px 28px rgb(0 0 0 / 0.35);
+}
+
+@theme inline {
+  --font-sans: 'Neue Montreal', 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: 'Source Serif 4 Variable', 'Iowan Old Style', Georgia, serif;
+  --font-heading: 'Season Mix', 'Source Serif 4 Variable', Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-canvas: var(--canvas);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-text: var(--brand-text);
+  --color-success: var(--success);
+  --color-faint: var(--faint);
+  --color-bloom-amber: var(--bloom-amber);
+  --color-bloom-orange: var(--bloom-orange);
+  --color-bloom-ember: var(--bloom-ember);
+  --color-bloom-sky: var(--bloom-sky);
+  --color-bloom-teal: var(--bloom-teal);
+  --color-bloom-green: var(--bloom-green);
+  --color-bloom-pink: var(--bloom-pink);
+  --color-bloom-lilac: var(--bloom-lilac);
+  --color-bloom-peach: var(--bloom-peach);
+  --color-kind-paper: var(--kind-paper);
+  --color-kind-note: var(--kind-note);
+  --color-status-unread: var(--status-unread);
+  --color-status-reading: var(--status-reading);
+  --color-status-read: var(--status-read);
+  --color-hl-yellow: var(--hl-yellow-solid);
+  --color-hl-green: var(--hl-green-solid);
+  --color-hl-blue: var(--hl-blue-solid);
+  --color-hl-pink: var(--hl-pink-solid);
+  --color-hl-purple: var(--hl-purple-solid);
+
+  --shadow-page: var(--page-shadow);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased overflow-hidden select-none cursor-default;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  button {
+    @apply cursor-default;
+  }
+  ::selection {
+    background: var(--brand-soft);
+  }
+  input,
+  textarea,
+  [contenteditable='true'] {
+    @apply select-text;
+  }
+}
+
+@utility drag {
+  -webkit-app-region: drag;
+}
+@utility no-drag {
+  -webkit-app-region: no-drag;
+}
+@utility bg-bloom-gradient {
+  background-image: var(--bloom-gradient);
+}
+
+/*
+ * Conduit's flower art: a blurred bloom photo with a halftone dot screen,
+ * fading into the page. Decorative only (aria-hidden, pointer-events: none).
+ */
+.bloom-art {
+  position: absolute;
+  pointer-events: none;
+  background: url('../assets/brand/bloom-sky.webp') center 38% / cover no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.55) 45%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.55) 45%, transparent 100%);
+}
+.bloom-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgb(255 255 255 / 0.7) 0.9px, transparent 1.3px);
+  background-size: 4px 4px;
+  mix-blend-mode: soft-light;
+}
+/* Alpha-blended pastels turn olive over coal; add the light instead so it glows. */
+.dark .bloom-art {
+  opacity: 0.26;
+  mix-blend-mode: plus-lighter;
+  filter: saturate(1.4);
+}
+/* Small bloom tile for AI empty states. */
+.bloom-tile {
+  position: relative;
+  overflow: hidden;
+  background: url('../assets/brand/bloom-peach.webp') 55% 45% / 260% auto no-repeat;
+  color: #fff;
+}
+.bloom-tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgb(255 255 255 / 0.55) 0.8px, transparent 1.2px);
+  background-size: 3px 3px;
+  mix-blend-mode: soft-light;
+}
+.bloom-tile > * {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 1px 2px rgb(41 37 30 / 0.25));
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Thin, auto-hiding scrollbars (macOS-like). */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklch, var(--foreground) 18%, transparent);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body.resizing,
+body.resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

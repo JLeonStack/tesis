@@ -1,0 +1,16 @@
+appId: com.jdeleon.thesisstudio
+productName: Thesis Studio
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**
+  - package.json
+asarUnpack:
+  - out/renderer/**/*.mjs
+mac:
+  category: public.app-category.education
+  target:
+    - target: dmg
+      arch: [arm64]
+  darkModeSupport: true

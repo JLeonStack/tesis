@@ -1,0 +1,334 @@
+/*
+ * Styles for content we don't render through React markup: pdf.js text
+ * layers, highlight overlays, ProseMirror documents and assistant markdown.
+ */
+
+/* ---------- PDF pages ---------- */
+.pdf-page {
+  position: relative;
+  flex: none;
+  background: #fff;
+  box-shadow: var(--page-shadow);
+  border-radius: 3px;
+  contain: strict;
+}
+.page-canvas,
+.page-canvas canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+}
+.reader-night .pdf-page {
+  background: #1e1b17;
+}
+.reader-night .page-canvas canvas {
+  filter: invert(0.88) hue-rotate(180deg) contrast(0.95);
+}
+.hl-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.hl {
+  position: absolute;
+  mix-blend-mode: multiply;
+  border-radius: 2px;
+}
+.reader-night .hl {
+  mix-blend-mode: screen;
+  opacity: 0.55;
+}
+.hl-yellow { background: var(--hl-yellow); }
+.hl-green { background: var(--hl-green); }
+.hl-blue { background: var(--hl-blue); }
+.hl-pink { background: var(--hl-pink); }
+.hl-purple { background: var(--hl-purple); }
+.hl.selected {
+  box-shadow: 0 2px 0 0 var(--primary);
+}
+.hl.flash {
+  animation: hl-flash 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes hl-flash {
+  0%, 40% { box-shadow: 0 0 0 4px var(--primary); }
+}
+/* Skim mode: key sentences from the reading guide. Underlined, not filled, so
+   they never read as the user's own highlights. */
+:root {
+  --skim-goal: var(--bloom-lilac);
+  --skim-method: var(--bloom-teal);
+  --skim-finding: var(--bloom-orange);
+  --skim-limitation: var(--bloom-pink);
+  --skim-definition: var(--bloom-amber);
+}
+.skim {
+  position: absolute;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in oklab, var(--skim-c) 10%, transparent);
+  box-shadow: inset 0 -2px 0 0 color-mix(in oklab, var(--skim-c) 80%, transparent);
+  mix-blend-mode: multiply;
+}
+.reader-night .skim {
+  mix-blend-mode: screen;
+  background: color-mix(in oklab, var(--skim-c) 18%, transparent);
+}
+.skim-goal { --skim-c: var(--skim-goal); }
+.skim-method { --skim-c: var(--skim-method); }
+.skim-finding { --skim-c: var(--skim-finding); }
+.skim-limitation { --skim-c: var(--skim-limitation); }
+.skim-definition { --skim-c: var(--skim-definition); }
+.skim.flash {
+  animation: skim-flash 1.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes skim-flash {
+  0%, 45% { background: color-mix(in oklab, var(--skim-c) 38%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skim.flash { animation: none; background: color-mix(in oklab, var(--skim-c) 30%, transparent); }
+}
+/* Reading marks: key terms (definition on hover) and citations of papers
+   already in the library (green once read). Quieter than highlights. */
+.mark-term {
+  position: absolute;
+  background-image: linear-gradient(90deg, rgb(70 60 120 / 0.55) 50%, transparent 0);
+  background-size: 4px 1.5px;
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+}
+.mark-term.hot { background-color: rgb(70 60 120 / 0.09); }
+.reader-night .mark-term { background-image: linear-gradient(90deg, rgb(200 190 255 / 0.6) 50%, transparent 0); }
+.reader-night .mark-term.hot { background-color: rgb(200 190 255 / 0.12); }
+.mark-cite {
+  --cite-c: var(--brand);
+  position: absolute;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--cite-c) 9%, transparent);
+  box-shadow: inset 0 -1.5px 0 0 color-mix(in oklab, var(--cite-c) 65%, transparent);
+}
+.mark-cite.read { --cite-c: var(--status-read); }
+.mark-cite.hot { background: color-mix(in oklab, var(--cite-c) 22%, transparent); }
+.reader-night .mark-cite { mix-blend-mode: screen; }
+.reader-marks-hot .textLayer, .reader-marks-hot .textLayer * { cursor: pointer; }
+/* Literature matrix */
+.matrix th {
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.matrix td {
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  vertical-align: top;
+}
+.matrix th:first-child,
+.matrix td:first-child { border-right: 1px solid var(--border); }
+.matrix tbody tr { cursor: default; }
+.matrix tbody tr:hover td { background: color-mix(in oklab, var(--accent) 55%, var(--background)); }
+.matrix tbody tr.expanded td { background: var(--accent); }
+.comment-mark {
+  position: absolute;
+  right: -14px;
+  width: 6px;
+  height: 14px;
+  border-radius: 3px;
+  filter: saturate(2);
+}
+
+/* pdf.js text layer (subset of pdf_viewer.css). */
+.text-host { position: absolute; inset: 0; }
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  transform-origin: 0 0;
+  z-index: 1;
+  forced-color-adjust: none;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.textLayer .markedContent { display: contents; }
+.textLayer ::selection {
+  background: color-mix(in oklch, var(--primary) 30%, transparent);
+  color: transparent;
+}
+.textLayer br::selection { background: transparent; }
+.textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+}
+.textLayer.selecting .endOfContent { top: 0; }
+
+/* ---------- Note documents (ProseMirror) ---------- */
+.prose {
+  outline: none;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--foreground);
+  user-select: text;
+  cursor: text;
+  min-height: 200px;
+  font-optical-sizing: auto;
+}
+.note-side .prose { font-size: 15.5px; }
+.prose > * + * { margin-top: 0.75em; }
+.prose p { margin: 0; }
+.prose p + p { margin-top: 0.65em; }
+.prose h1, .prose h2, .prose h3 {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  margin: 1.5em 0 0.4em;
+}
+.prose h1 { font-size: 1.6em; }
+.prose h2 { font-size: 1.3em; }
+.prose h3 { font-size: 1.1em; }
+.prose ul, .prose ol { padding-left: 1.4em; margin: 0.5em 0; }
+.prose ul { list-style: disc; }
+.prose ol { list-style: decimal; }
+.prose li + li { margin-top: 0.2em; }
+.prose li p { margin: 0; }
+.prose ul[data-type='taskList'] { list-style: none; padding-left: 0.2em; }
+.prose ul[data-type='taskList'] li { display: flex; gap: 10px; align-items: flex-start; }
+.prose ul[data-type='taskList'] li > label { margin-top: 0.35em; }
+.prose ul[data-type='taskList'] li > div { flex: 1; }
+.prose ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+.prose input[type='checkbox'] { accent-color: var(--primary); width: 15px; height: 15px; }
+.prose blockquote {
+  margin: 1em 0;
+  padding: 0.2em 0 0.2em 1em;
+  border-left: 3px solid var(--input);
+  color: var(--muted-foreground);
+}
+.prose blockquote[data-paper-id] {
+  border-left-color: var(--brand);
+  background: linear-gradient(90deg, var(--brand-soft), transparent 75%);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 0.6em 1em;
+  font-size: 0.95em;
+  color: var(--foreground);
+}
+/* Translated quote: the Spanish reads first; the original sits below, quieter. */
+.prose blockquote[data-paper-id] > p + p {
+  margin-top: 0.5em;
+  font-size: 0.88em;
+  color: var(--muted-foreground);
+}
+.prose mark { background: var(--hl-yellow); color: inherit; border-radius: 2px; padding: 0 1px; }
+.prose a { color: var(--brand-text); text-decoration: underline; text-underline-offset: 3px; }
+.prose code { background: var(--muted); padding: 1px 4px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.85em; }
+.prose pre { background: var(--muted); padding: 12px 14px; border-radius: var(--radius); font-size: 13px; overflow-x: auto; }
+.prose hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
+.prose strong { font-weight: 650; }
+.prose p.is-editor-empty:first-child::before,
+.prose .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--faint);
+}
+.cite {
+  font-family: var(--font-sans);
+  font-size: 0.78em;
+  font-weight: 500;
+  color: var(--brand-text);
+  background: var(--brand-soft);
+  padding: 1px 6px;
+  border-radius: 5px;
+  white-space: nowrap;
+  cursor: pointer;
+  vertical-align: 0.05em;
+  transition: background 120ms;
+}
+.cite:hover { background: color-mix(in oklch, var(--brand) 22%, transparent); }
+.ProseMirror-selectednode.cite { box-shadow: 0 0 0 2px var(--brand); }
+
+/* ---------- Assistant markdown ---------- */
+.md { font-size: 13.5px; line-height: 1.6; }
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md p, .md ul, .md ol { margin: 0.55em 0; }
+.md ul { list-style: disc; padding-left: 1.3em; }
+.md ol { list-style: decimal; padding-left: 1.3em; }
+.md li + li { margin-top: 0.25em; }
+.md li::marker { color: var(--faint); }
+.md h1, .md h2, .md h3, .md h4 { font-size: 13.5px; font-weight: 650; margin: 1.1em 0 0.35em; }
+.md strong { font-weight: 620; }
+.md blockquote {
+  margin: 0.6em 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--input);
+  color: var(--muted-foreground);
+  font-family: var(--font-serif);
+}
+.md code { background: var(--muted); padding: 1px 4px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.88em; }
+.md pre { background: var(--muted); padding: 10px; border-radius: var(--radius); overflow-x: auto; }
+.md table { border-collapse: collapse; font-size: 12.5px; width: 100%; margin: 0.6em 0; }
+.md th, .md td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; vertical-align: top; }
+.md th { background: var(--muted); }
+.md a { color: var(--brand-text); }
+.cite-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 19px;
+  padding: 0 6px;
+  margin: 0 2px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-size: 11px;
+  font-weight: 550;
+  vertical-align: 1px;
+  cursor: pointer;
+  transition: background 120ms, transform 120ms;
+}
+.cite-chip span { opacity: 0.7; }
+.cite-chip:hover { background: color-mix(in oklch, var(--brand) 24%, transparent); }
+.cite-chip:active { transform: scale(0.96); }
+
+/* Formatted references: hanging indent. */
+.reference {
+  font-family: var(--font-serif);
+  line-height: 1.55;
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+  user-select: text;
+  word-break: break-word;
+}

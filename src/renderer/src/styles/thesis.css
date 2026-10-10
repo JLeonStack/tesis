@@ -1,0 +1,507 @@
+/*
+ * Thesis editor: every section is a US Letter sheet laid out with the UCEMA
+ * rules (Calibri 11 pt, 2.54 cm margins, double spacing, 1.27 cm indents).
+ * Physical units on purpose, so 100% zoom is true size.
+ */
+:root {
+  --paper: #ffffff;
+  --ink: #1b1b1b;
+  /* Word's "double" = 2 × Calibri's natural line height (1.22 em). */
+  --thesis-line: 2.44;
+  --thesis-indent: 1.27cm;
+}
+.dark {
+  --paper: #2a2620;
+  --ink: #ecebe7;
+}
+
+.thesis-desk {
+  background: var(--canvas);
+}
+.thesis-pages,
+.thesis-prose {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+.thesis-pages {
+  padding: 40px 24px 30vh;
+  width: max-content;
+  min-width: 100%;
+}
+.thesis-prose {
+  outline: none;
+}
+
+.thesis-sheet {
+  position: relative;
+  box-sizing: border-box;
+  width: 8.5in;
+  min-height: 11in;
+  padding: 2.54cm;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--page-shadow);
+  border-radius: 2px;
+  font-family: Calibri, Carlito, 'Liberation Sans', sans-serif;
+  font-size: 11pt;
+  line-height: var(--thesis-line);
+  text-align: left;
+  cursor: text;
+  user-select: text;
+}
+.thesis-sheet ::selection {
+  background: color-mix(in oklch, var(--brand) 26%, transparent);
+}
+.sheet-label {
+  position: absolute;
+  top: 0.9cm;
+  left: 2.54cm;
+  font: 500 10px/1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  user-select: none;
+  pointer-events: none;
+}
+.sheet-title {
+  font-weight: 700;
+  text-align: center;
+  user-select: none;
+}
+.thesis-sheet .faint {
+  color: var(--faint);
+}
+
+/* ---------- body text ---------- */
+.thesis-prose p {
+  margin: 0;
+  text-indent: var(--thesis-indent);
+}
+.thesis-sheet[data-kind='dedicatoria'] p,
+.thesis-sheet[data-kind='agradecimientos'] p,
+.thesis-sheet[data-kind='resumen'] .sheet-body > p:first-child {
+  text-indent: 0;
+}
+.thesis-prose strong {
+  font-weight: 700;
+}
+.thesis-prose a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.thesis-prose mark {
+  background: var(--hl-yellow);
+  color: inherit;
+}
+
+/* Title levels (APA 7): unnumbered, same size as the text. */
+.thesis-prose h1,
+.thesis-prose h2,
+.thesis-prose h3 {
+  margin: 0;
+  font-size: 11pt;
+  font-weight: 700;
+  line-height: var(--thesis-line);
+  letter-spacing: 0;
+}
+.thesis-prose h1 {
+  text-align: center;
+}
+.thesis-prose h3 {
+  font-style: italic;
+}
+.run-in {
+  font-weight: 700;
+}
+.run-in[data-run-in='5'] {
+  font-style: italic;
+}
+
+.thesis-prose blockquote {
+  margin: 0 0 0 var(--thesis-indent);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+}
+.thesis-prose blockquote p {
+  text-indent: 0;
+}
+.thesis-prose ul,
+.thesis-prose ol {
+  margin: 0;
+  padding-left: var(--thesis-indent);
+}
+.thesis-prose ul {
+  list-style: disc;
+}
+.thesis-prose ol {
+  list-style: decimal;
+}
+.thesis-prose li p {
+  text-indent: 0;
+}
+
+.thesis-prose .cite {
+  font: inherit;
+  color: inherit;
+  background: var(--brand-soft);
+  padding: 0 2px;
+  border-radius: 3px;
+  vertical-align: baseline;
+}
+
+.page-break {
+  position: relative;
+  height: 1.4em;
+  margin: 0 -2.54cm;
+  border-top: 1px dashed var(--input);
+  border-bottom: 1px dashed var(--input);
+  background: var(--canvas);
+  user-select: none;
+}
+.page-break::after {
+  content: 'Salto de página';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 500 10px/1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.page-break.ProseMirror-selectednode {
+  border-color: var(--brand);
+}
+
+/* ---------- guidance placeholders ---------- */
+/* Small enough that two lines fit inside one double-spaced line. */
+.thesis-prose .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  width: 100%;
+  height: 0;
+  text-indent: 0;
+  font-size: 8.5pt;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--faint);
+  pointer-events: none;
+  padding-top: 0.35em;
+}
+.thesis-prose h1.is-empty::before,
+.thesis-prose h2.is-empty::before,
+.thesis-prose h3.is-empty::before {
+  font-size: inherit;
+  line-height: inherit;
+  padding-top: 0;
+  font-style: inherit;
+}
+.thesis-prose h1.is-empty::before {
+  text-align: center;
+}
+
+/* ---------- footnotes ---------- */
+.fn-ref {
+  font-size: 0.72em;
+  line-height: 0;
+  padding: 0 1px;
+  color: var(--brand-text);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+.fn-ref:hover,
+.fn-ref.ProseMirror-selectednode {
+  background: var(--brand-soft);
+  border-radius: 3px;
+}
+.sheet-notes {
+  margin-top: 2.2em;
+  padding-top: 0.5em;
+  font-size: 10pt;
+  line-height: 1.25;
+  user-select: none;
+}
+.sheet-notes::before {
+  content: '';
+  display: block;
+  width: 2in;
+  border-top: 1px solid currentColor;
+  opacity: 0.5;
+  margin-bottom: 0.5em;
+}
+.sheet-note {
+  padding: 2px 4px;
+  margin: 0 -4px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sheet-note:hover {
+  background: var(--brand-soft);
+}
+
+/* ---------- table of contents ---------- */
+.toc-block {
+  user-select: none;
+}
+.toc-entry {
+  display: flex;
+  align-items: baseline;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.toc-entry:hover .toc-text {
+  color: var(--brand-text);
+}
+.toc-entry[data-level='2'] {
+  padding-left: var(--thesis-indent);
+}
+.toc-entry[data-level='3'] {
+  padding-left: calc(2 * var(--thesis-indent));
+}
+.toc-dots {
+  flex: 1;
+  min-width: 1em;
+  margin: 0 4px;
+  border-bottom: 1.5px dotted currentColor;
+  opacity: 0.45;
+  transform: translateY(-0.35em);
+}
+.toc-page {
+  color: var(--faint);
+}
+
+/* ---------- references (APA hanging indent) ---------- */
+.reference-list {
+  user-select: text;
+}
+.reference-list p,
+.thesis-sheet[data-kind='referencias'] .sheet-body > p {
+  margin: 0;
+  padding-left: var(--thesis-indent);
+  text-indent: calc(-1 * var(--thesis-indent));
+}
+.reference-list .ref-empty {
+  padding: 0;
+  text-indent: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
+/* ---------- cover & authorizations ---------- */
+.cover-sheet .cover-line {
+  min-height: calc(12pt * var(--thesis-line));
+  font-size: 12pt;
+}
+.cover-sheet .cover-gap {
+  height: calc(4 * 12pt * var(--thesis-line));
+}
+.cover-14 {
+  font-size: 14pt !important;
+}
+.cover-16 {
+  font-size: 16pt !important;
+}
+.cover-24 {
+  font-size: 24pt !important;
+}
+.thesis-sheet .center {
+  text-align: center;
+}
+.thesis-sheet .right {
+  text-align: right;
+}
+.thesis-sheet .bold {
+  font-weight: 700;
+}
+.cover-logo {
+  display: inline-block;
+  width: 2.72in;
+  vertical-align: top;
+}
+.cover-field {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 0 2px;
+  border-radius: 4px;
+  line-height: var(--thesis-line);
+  transition: background 120ms;
+}
+.cover-field:hover,
+.cover-field:focus {
+  background: var(--brand-soft);
+}
+.cover-field::placeholder {
+  color: var(--faint);
+  opacity: 1;
+}
+textarea.cover-field {
+  display: block;
+  width: 100%;
+}
+.cover-inline {
+  width: auto;
+  min-width: 2ch;
+  text-align: inherit;
+  field-sizing: content;
+}
+.cover-date {
+  font: inherit;
+  color: inherit;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+.cover-date:hover {
+  background: var(--brand-soft);
+}
+
+.auth-list {
+  list-style: disc;
+  padding-left: var(--thesis-indent);
+  margin: 0;
+}
+.auth-head {
+  font-weight: 700;
+}
+.auth-options {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 12px;
+}
+.auth-option {
+  display: block;
+  width: 100%;
+  text-align: justify;
+  font: inherit;
+  line-height: calc(1.5 * 1.22);
+  color: inherit;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--input);
+  transition: background 120ms, opacity 120ms, border-color 120ms;
+}
+.auth-option:hover {
+  border-color: var(--brand);
+}
+.auth-option.on {
+  border-style: solid;
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.auth-option.off {
+  opacity: 0.35;
+}
+.auth-sign {
+  margin-top: 1.5em;
+  text-align: center;
+  line-height: calc(1.5 * 1.22);
+}
+.auth-signature {
+  display: inline-block;
+  width: 3in;
+  border-bottom: 1px solid currentColor;
+  opacity: 0.6;
+}
+
+/* Style menu samples. */
+.thesis-style-sample {
+  font-family: Calibri, Carlito, sans-serif;
+  font-size: 14px;
+}
+.thesis-style-sample.lvl-1,
+.thesis-style-sample.lvl-2,
+.thesis-style-sample.lvl-4 {
+  font-weight: 700;
+}
+.thesis-style-sample.lvl-3,
+.thesis-style-sample.lvl-5 {
+  font-weight: 700;
+  font-style: italic;
+}
+
+/* Style review (lint.ts): on screen only, never exported. */
+.thesis-sheet .lint {
+  cursor: pointer;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+  border-radius: 2px;
+  transition: background-color 0.12s;
+}
+.thesis-sheet .lint-warn {
+  text-decoration: underline wavy color-mix(in oklab, var(--color-bloom-amber) 85%, transparent);
+  text-decoration-thickness: 1.5px;
+}
+.thesis-sheet .lint-info {
+  text-decoration: underline dotted color-mix(in oklab, #3b82f6 80%, transparent);
+  text-decoration-thickness: 2px;
+}
+.thesis-sheet .lint-long {
+  text-decoration: underline dotted color-mix(in oklab, currentColor 28%, transparent);
+  text-decoration-thickness: 1.5px;
+}
+.thesis-sheet .lint-warn:hover {
+  background: color-mix(in oklab, var(--color-bloom-amber) 16%, transparent);
+}
+.thesis-sheet .lint-info:hover {
+  background: color-mix(in oklab, #3b82f6 12%, transparent);
+}
+.thesis-sheet .lint-long:hover {
+  background: color-mix(in oklab, currentColor 5%, transparent);
+}
+@media print {
+  .thesis-sheet .lint {
+    text-decoration: none;
+    background: none;
+  }
+}
+
+/* Autocomplete (autocomplete.ts): suggested continuation after the caret. */
+.thesis-ghost {
+  color: color-mix(in oklab, currentColor 38%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+.thesis-ghost-key {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 4px;
+  border: 1px solid color-mix(in oklab, currentColor 30%, transparent);
+  border-radius: 4px;
+  font: 500 9px/14px var(--font-sans);
+  vertical-align: 2px;
+  text-indent: 0;
+  letter-spacing: 0.02em;
+}
+.thesis-ghost-loading {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--brand) 70%, transparent);
+  vertical-align: middle;
+  animation: thesis-ghost-pulse 1s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes thesis-ghost-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
