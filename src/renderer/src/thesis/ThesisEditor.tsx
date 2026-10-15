@@ -20,10 +20,13 @@ import {
   FileText,
   Wand2,
   ScanText,
-  TextCursorInput
+  TextCursorInput,
+  ListTree,
+  History,
+  BookCheck
 } from 'lucide-react'
 import type { Thesis, ThesisMeta } from '@shared/types'
-import { openPalette, saveThesis, useStore } from '../store'
+import { openPalette, saveThesis, toast, useStore } from '../store'
 import { registerEditor } from '../editor/noteBridge'
 import { debounce, mod } from '../lib/util'
 import { cn } from '@/lib/utils'
@@ -38,14 +41,18 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Hint, IconButton } from '../components/common'
-import { buildThesisExtensions } from './schema'
+import { buildThesisExtensions, completeOutline } from './schema'
 import { runInOf } from './analyze'
 import { buildThesisModel, type WordCounts } from './model'
 import { AuthorizationsSheet, CoverSheet } from './Sheets'
 import { FootnoteEditor } from './FootnoteEditor'
 import { ABSTRACT_LIMIT, WORD_LIMIT } from './template'
 import { exportThesisDocx, exportThesisPdf } from './exporting'
-import { registerThesisEditor } from './bridge'
+import { registerThesisEditor, registerThesisMeta, thesisEditor } from './bridge'
+import { backSentence } from './evidence'
+import { uncitedEnabled, uncitedSentences } from './uncited'
+import { maybeAutoVersion } from './versions'
+import { VersionsDialog } from './VersionsDialog'
 import { loadThesisFonts } from './fonts'
 import { WritingToolbar, openHelpers } from './WritingToolbar'
 import { lintEnabled, lintIssues } from './lint'
@@ -119,6 +126,7 @@ function ThesisEditorInner({ thesis }: { thesis: Thesis }) {
       next.plain = ed.getText({ blockSeparator: '\n' })
     }
     saveThesis(next)
+    maybeAutoVersion(next)
     setSaved(true)
   }
   const persist = useMemo(() => debounce(persistNow, 500), [id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -138,6 +146,12 @@ function ThesisEditorInner({ thesis }: { thesis: Thesis }) {
             openPalette('cite', id)
             return true
           }
+          // ⌘⌥E: back the sentence at the caret (or the selection) with the library.
+          if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === 'KeyE') {
+            const ed = thesisEditor(id)
+            if (ed) backSentence(ed, id)
+            return true
+          }
           return false
         }
       },
@@ -155,6 +169,17 @@ function ThesisEditorInner({ thesis }: { thesis: Thesis }) {
 
   useEffect(() => (editor ? registerEditor(id, editor) : undefined), [editor, id])
   useEffect(() => (editor ? registerThesisEditor(id, editor) : undefined), [editor, id])
+  useEffect(
+    () =>
+      registerThesisMeta(id, {
+        get: () => metaRef.current,
+        set: (m) => {
+          metaRef.current = m
+          setMeta(m)
+        }
+      }),
+    [id]
+  )
   useEffect(
     () => () => {
       persist.cancel()
@@ -187,7 +212,7 @@ function ThesisEditorInner({ thesis }: { thesis: Thesis }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
-      {editor && <Toolbar editor={editor} zoom={zoom} setZoom={setZoom} fitWidth={fitWidth} flush={() => persistNow(editor)} />}
+      {editor && <Toolbar editor={editor} thesisId={id} zoom={zoom} setZoom={setZoom} fitWidth={fitWidth} flush={() => persistNow(editor)} />}
       <div ref={deskRef} className="thesis-desk min-h-0 flex-1 overflow-auto">
         <div className="thesis-pages" style={{ zoom }}>
           <CoverSheet meta={meta} onChange={patchMeta} />
@@ -246,17 +271,20 @@ function StatusBar({ words, saved }: { words: WordCounts | null; saved: boolean 
 
 function Toolbar({
   editor,
+  thesisId,
   zoom,
   setZoom,
   fitWidth,
   flush
 }: {
   editor: Editor
+  thesisId: string
   zoom: number
   setZoom: (z: (z: number) => number) => void
   fitWidth: () => void
   flush: () => void
 }) {
+  const [versionsOpen, setVersionsOpen] = useState(false)
   const st = useEditorState({
     editor,
     selector: ({ editor: e }) => {
@@ -279,7 +307,9 @@ function Toolbar({
         quote: e.isActive('blockquote'),
         lintOn: lintEnabled(e.state),
         lintCount: lintIssues(e.state).length,
-        acOn: autocompleteEnabled(e.state)
+        acOn: autocompleteEnabled(e.state),
+        uncitedOn: uncitedEnabled(e.state),
+        uncitedCount: uncitedSentences(e.state).length
       }
     }
   })
@@ -366,6 +396,36 @@ function Toolbar({
           <CiteIcon /> Citar
         </Button>
       </Hint>
+      <Hint label="Respaldar con tu biblioteca: papers que dicen algo parecido, con el pasaje, la página y si lo apoyan" keys={[mod, '⌥', 'E']}>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="h-7 text-muted-foreground"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => backSentence(editor, thesisId)}
+        >
+          <BookCheck /> Respaldar
+        </Button>
+      </Hint>
+      <Hint
+        label={
+          st.uncitedOn
+            ? 'Oraciones sin cita marcadas en el texto (subrayado punteado). Clic para dejar de marcarlas'
+            : 'Marcar las oraciones del cuerpo que afirman algo y no tienen cita'
+        }
+      >
+        <Button
+          variant="ghost"
+          size="xs"
+          aria-pressed={st.uncitedOn}
+          className={cn('h-7 tabular-nums', st.uncitedOn ? 'text-foreground' : 'text-faint')}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => editor.commands.toggleUncitedMarks()}
+        >
+          {st.uncitedCount ? `${st.uncitedCount} sin cita` : 'Todo citado'}
+          {st.uncitedOn && st.uncitedCount > 0 && <span className="size-1.5 rounded-full bg-bloom-pink" />}
+        </Button>
+      </Hint>
       <Sep />
       <Hint label="Ayudas de redacción: sinónimos, correcciones, conectores… (o seleccioná texto)" keys={[mod, '.']}>
         <Button variant="ghost" size="xs" className="h-7 text-muted-foreground" onMouseDown={(e) => e.preventDefault()} onClick={() => {
@@ -421,6 +481,16 @@ function Toolbar({
         <Plus />
       </IconButton>
       <Sep />
+      <IconButton
+        label="Historial de versiones"
+        onClick={() => {
+          flush()
+          setVersionsOpen(true)
+        }}
+      >
+        <History />
+      </IconButton>
+      <VersionsDialog thesisId={thesisId} open={versionsOpen} onOpenChange={setVersionsOpen} />
       <IconButton label="Revisar con el asistente" keys={[mod, 'J']} onClick={() => useStore.setState({ rightOpen: true, rightTab: 'assistant' })}>
         <Sparkles />
       </IconButton>
@@ -448,8 +518,30 @@ function Toolbar({
             <FileDown /> Exportar a PDF…
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              const n = completeOutline(editor)
+              toast(
+                n ? `Se agregaron ${n} título${n === 1 ? '' : 's'} de la plantilla` : 'La tesis ya tiene todos los títulos de la plantilla',
+                n ? { label: 'Deshacer', run: () => editor.commands.undo() } : undefined,
+                n ? { status: 'success' } : {}
+              )
+            }}
+          >
+            <ListTree /> Completar la estructura de la plantilla
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              flush()
+              setVersionsOpen(true)
+            }}
+          >
+            <History /> Historial de versiones…
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => useStore.setState({ rightOpen: true, rightTab: 'checks' })}>Ver requisitos UCEMA</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => useStore.setState({ rightOpen: true, rightTab: 'outline' })}>Ver esquema</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => useStore.setState({ rightOpen: true, rightTab: 'support' })}>Ver oraciones sin cita</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

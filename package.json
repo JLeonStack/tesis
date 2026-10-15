@@ -1,7 +1,7 @@
 {
   "name": "thesis-studio",
   "productName": "Thesis Studio",
-  "version": "0.3.1",
+  "version": "0.9.3",
   "description": "Read, annotate and write your thesis with an AI research assistant.",
   "main": "out/main/index.js",
   "private": true,
@@ -12,6 +12,7 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
     "dist": "electron-vite build && electron-builder --mac"
   },
   "trustedDependencies": [
@@ -61,6 +62,7 @@
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "typescript": "^7.0.2",
-    "vite": "^7"
+    "vite": "^7",
+    "vitest": "^5.0.3"
   }
 }

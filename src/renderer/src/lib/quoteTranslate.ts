@@ -1,9 +1,10 @@
 import { aiModel, useStore } from '../store'
-import { cachedTranslation, translationRules } from './translate'
+import { cachedTranslation, langLabel, translationRules } from './translate'
 
 // Quotes saved to notes are translated into Spanish automatically. Requests
 // that arrive together (exporting every highlight) go out as one batch.
 
+// The stored/model-facing value stays in English, like Settings.translateTo.
 const LANG = 'Spanish'
 const BATCH = 20
 const WAIT_MS = 250
@@ -24,9 +25,9 @@ export function looksSpanish(text: string): boolean {
 
 export const canTranslate = () => !!useStore.getState().account?.connected
 
-const INSTRUCTIONS = `You translate quotes from academic papers (business, management, economics, social science) into ${LANG}, for an MBA student's research notes.
+const INSTRUCTIONS = `Traducís citas textuales de papers académicos (negocios, management, economía, ciencias sociales) a ${langLabel(LANG)}, para las notas de investigación de un estudiante de MBA.
 ${translationRules(LANG)}
-- You get a numbered list of independent passages. Return one translation per passage, in the same order, as plain text without surrounding quotation marks.`
+- Recibís una lista numerada de pasajes independientes. Devolvé una traducción por pasaje, en el mismo orden, como texto plano y sin comillas alrededor.`
 
 const SCHEMA = {
   type: 'object',
@@ -62,7 +63,7 @@ function flush(): void {
 async function run(jobs: Job[]): Promise<void> {
   try {
     const list = jobs.map((j, i) => `${i + 1}. ${j.text}`).join('\n\n')
-    const r = (await window.api.ai.extract(`Translate these ${jobs.length} passages into ${LANG}:\n\n${list}`, SCHEMA, {
+    const r = (await window.api.ai.extract(`Traducí estos ${jobs.length} pasajes a ${langLabel(LANG)}:\n\n${list}`, SCHEMA, {
       instructions: INSTRUCTIONS,
       model: aiModel().id,
       effort: 'low'
@@ -70,7 +71,7 @@ async function run(jobs: Job[]): Promise<void> {
     jobs.forEach((j, i) => {
       const t = r.translations[i]?.trim().replace(/^[«“"]+|[»”"]+$/g, '')
       if (t) j.resolve(t)
-      else j.reject(new Error('Missing translation'))
+      else j.reject(new Error('Falta la traducción'))
     })
   } catch (e) {
     for (const j of jobs) j.reject(e as Error)

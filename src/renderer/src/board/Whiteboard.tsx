@@ -4,6 +4,7 @@ import { RotateCcw, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TextShimmer } from '@/components/motion/text-shimmer'
 import { EmptyState } from '../components/common'
+import { registerBoard } from './bridge'
 
 const BOARD_URL = 'https://excalidraw.com/'
 /** Must match WHITEBOARD_PARTITION in main: a persistent session, so the drawing survives restarts. */
@@ -20,7 +21,8 @@ const FORWARD: Record<string, string> = { 'zoom-in': '=', 'zoom-out': '-', 'zoom
 
 /**
  * Excalidraw as a tab. It runs in a locked-down <webview> (see guardWhiteboard
- * in main) and saves the scene itself, in its own persistent storage.
+ * in main) and saves the scene itself, in its own persistent storage. The
+ * assistant, in the side panel, can read the board and draw on it (board/bridge).
  */
 export function Whiteboard({ active }: { active: boolean }) {
   const ref = useRef<WebviewElement>(null)
@@ -29,7 +31,11 @@ export function Whiteboard({ active }: { active: boolean }) {
   useEffect(() => {
     const wv = ref.current
     if (!wv) return
-    const ready = () => setState('ready')
+    const ready = () => {
+      setState('ready')
+      // The assistant reads and draws through this webview.
+      registerBoard(wv)
+    }
     const failed = (e: Event) => {
       const { errorCode, isMainFrame } = e as Event & { errorCode: number; isMainFrame: boolean }
       if (isMainFrame && errorCode !== -3) setState('error') // -3: aborted by a newer navigation
@@ -39,6 +45,7 @@ export function Whiteboard({ active }: { active: boolean }) {
     return () => {
       wv.removeEventListener('dom-ready', ready)
       wv.removeEventListener('did-fail-load', failed)
+      registerBoard(null)
     }
   }, [])
 
@@ -74,8 +81,8 @@ export function Whiteboard({ active }: { active: boolean }) {
             {state === 'error' ? (
               <EmptyState
                 icon={<WifiOff />}
-                title="Can’t reach Excalidraw"
-                description="Your drawing is saved on this Mac. Check your connection and try again."
+                title="No se puede conectar con Excalidraw"
+                description="Tu dibujo está guardado en esta Mac. Revisá la conexión e intentá de nuevo."
               >
                 <Button
                   variant="outline"
@@ -85,13 +92,13 @@ export function Whiteboard({ active }: { active: boolean }) {
                     ref.current?.reload()
                   }}
                 >
-                  <RotateCcw /> Try again
+                  <RotateCcw /> Reintentar
                 </Button>
               </EmptyState>
             ) : (
               <div className="grid flex-1 place-items-center">
                 <TextShimmer duration={1.6} className="text-[13px] font-medium">
-                  Opening your whiteboard…
+                  Abriendo tu pizarra…
                 </TextShimmer>
               </div>
             )}

@@ -87,7 +87,7 @@ export function Collapsible({
           aria-expanded={open}
           aria-controls={contentId}
           onClick={toggle}
-          title={group ? '⌥-click to toggle all' : undefined}
+          title={group ? '⌥-clic para alternar todas' : undefined}
           className={cn(
             'group/toggle -ml-1 flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 pr-1 pl-1 text-left outline-none',
             'focus-visible:ring-2 focus-visible:ring-ring/40',
@@ -108,7 +108,7 @@ export function Collapsible({
           <span className="min-w-0 truncate">{title}</span>
           {count != null && <span className="flex-none text-[11px] font-medium tracking-normal text-faint tabular-nums normal-case">{count}</span>}
           {!open && summary && (
-            <span className="min-w-0 truncate text-[11.5px] font-normal tracking-normal text-muted-foreground normal-case">· {summary}</span>
+            <span className="min-w-0 shrink-[1000] truncate text-[11.5px] font-normal tracking-normal text-muted-foreground normal-case">· {summary}</span>
           )}
         </button>
         {actions && <div className="flex flex-none items-center gap-0.5">{actions}</div>}

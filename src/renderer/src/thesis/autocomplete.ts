@@ -1,7 +1,10 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
-import { aiModel, useStore } from '../store'
+import type { Settings } from '@shared/types'
+import { aiModel, logAiUse, patchAiUse, useStore } from '../store'
+import { researchBrief } from '../research/framework'
+import { voiceBlock } from '../lib/voice'
 import { KEYWORDS_LABEL, SECTION_INFO, type SectionKind } from './template'
 import { stripMarkers } from './text'
 
@@ -51,6 +54,8 @@ Reglas:
 - No repitas lo ya escrito. Sin comillas ni marcadores.
 - Si no hay una continuación natural y segura, devolvé "text" vacío.
 Respondé solo con el JSON pedido.`
+
+export const autocompleteInstructions = (s: Pick<Settings, 'research' | 'researchQuestion' | 'voice'>) => [INSTRUCTIONS, researchBrief(s), voiceBlock(s)].filter(Boolean).join('\n\n')
 
 const SCHEMA = { type: 'object', additionalProperties: false, required: ['text'], properties: { text: { type: 'string' } } }
 
@@ -122,7 +127,7 @@ function fitToPrefix(prefix: string, raw: string): string {
 
 async function fetchSuggestion(t: Target): Promise<string> {
   const r = (await window.api.ai.assist({
-    instructions: INSTRUCTIONS,
+    instructions: autocompleteInstructions(useStore.getState().settings),
     prompt: prompt(t),
     schema: SCHEMA,
     model: aiModel().id,
@@ -153,6 +158,18 @@ function loadingWidget(): HTMLElement {
 
 const set = (tr: Transaction, meta: AcMeta) => tr.setMeta(autocompleteKey, meta)
 
+/** Accepted continuations go in the AI-use log; a run of them within a minute is one entry. */
+let lastLog: { id: string; at: number; chars: number } | null = null
+function logAccepted(chars: number): void {
+  const now = Date.now()
+  if (lastLog && now - lastLog.at < 60_000 && useStore.getState().ailog[lastLog.id]) {
+    lastLog = { ...lastLog, at: now, chars: lastLog.chars + chars }
+    patchAiUse(lastLog.id, { chars: lastLog.chars })
+    return
+  }
+  lastLog = { id: logAiUse({ kind: 'autocomplete', label: 'Autocompletado', chars, accepted: true }).id, at: now, chars }
+}
+
 function accept(view: EditorView, part: 'all' | 'word'): boolean {
   const ghost = autocompleteKey.getState(view.state)?.ghost
   if (!ghost || view.state.selection.from !== ghost.pos) return false
@@ -161,6 +178,7 @@ function accept(view: EditorView, part: 'all' | 'word'): boolean {
   const tr = view.state.tr.insertText(text, ghost.pos)
   set(tr, { ghost: rest.trim() ? { pos: ghost.pos + text.length, text: rest } : null, loading: null })
   view.dispatch(tr.scrollIntoView())
+  logAccepted(text.trim().length)
   return true
 }
 

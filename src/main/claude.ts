@@ -126,7 +126,7 @@ export class ClaudeBridge {
     if (this.sessions.get(chatId) === s) this.sessions.delete(chatId)
     if (!s.busy) return
     s.busy = false
-    const message = friendlyError(s.stderr.trim() || 'The assistant process stopped. Try again.')
+    const message = friendlyError(s.stderr.trim() || 'El proceso del asistente se detuvo. Probá de nuevo.')
     if (s.waiter) s.waiter({ text: '', error: message })
     else this.emit({ type: 'error', chatId, message })
     s.waiter = undefined
@@ -180,7 +180,7 @@ export class ClaudeBridge {
         ? 'CANCELLED'
         : undefined
       : msg.is_error || msg.subtype !== 'success'
-        ? friendlyError(typeof msg.result === 'string' && msg.result ? msg.result : (msg.errors ?? []).join(' ') || 'The request failed.')
+        ? friendlyError(typeof msg.result === 'string' && msg.result ? msg.result : (msg.errors ?? []).join(' ') || 'La consulta falló.')
         : undefined
     const waiter = s.waiter
     s.waiter = undefined
@@ -252,7 +252,7 @@ export class ClaudeBridge {
       this.emit({
         type: 'error',
         chatId: opts.chatId,
-        message: msg === 'CLAUDE_NOT_FOUND' ? 'Claude Code CLI not found. Install it from claude.com/claude-code.' : friendlyError(msg)
+        message: msg === 'CLAUDE_NOT_FOUND' ? 'No se encontró el Claude Code CLI. Instalalo desde claude.com/claude-code.' : friendlyError(msg)
       })
     }
   }
@@ -308,7 +308,7 @@ export class ClaudeBridge {
       chatId,
       {
         chatId,
-        instructions: opts.instructions ?? 'You extract structured data precisely. Never invent values; use empty strings when unknown.',
+        instructions: opts.instructions ?? 'Extraés datos estructurados con precisión. Nunca inventes valores; usá cadenas vacías cuando no los sepas.',
         model: opts.model,
         effort: opts.effort ?? 'low',
         schema
@@ -329,8 +329,8 @@ function claudeEffort(effort: string | undefined): string | undefined {
 }
 
 function friendlyError(msg: string): string {
-  if (/usage limit|rate limit|429|limit reached/i.test(msg)) return 'You reached your Claude usage limit for now. Try again later.'
-  if (/unauthorized|401|log ?in|auth|oauth/i.test(msg)) return 'Your Claude session expired. Reconnect from Settings.'
-  if (/network|ENOTFOUND|ECONN|timed out|overloaded|529/i.test(msg)) return 'Network problem reaching Claude. Check your connection.'
+  if (/usage limit|rate limit|429|limit reached/i.test(msg)) return 'Por ahora alcanzaste tu límite de uso de Claude. Probá más tarde.'
+  if (/unauthorized|401|log ?in|auth|oauth/i.test(msg)) return 'Tu sesión de Claude expiró. Reconectate desde Ajustes.'
+  if (/network|ENOTFOUND|ECONN|timed out|overloaded|529/i.test(msg)) return 'Hubo un problema de red al contactar Claude. Revisá tu conexión.'
   return msg
 }

@@ -1,10 +1,13 @@
+import type { Settings } from '@shared/types'
 import { aiModel, providerLabel, useStore } from '../store'
+import { researchBrief } from '../research/framework'
+import { voiceBlock } from '../lib/voice'
 
 // Writing helpers backed by the ChatGPT connection. They only ever work on
 // text the student already wrote (UCEMA allows AI for correcting writing,
 // grammar, format and APA; never for producing the analysis).
 
-export type AssistKind = 'synonyms' | 'correct' | 'clearer' | 'formal' | 'concise' | 'define' | 'translate' | 'ideas'
+export type AssistKind = 'synonyms' | 'correct' | 'clearer' | 'formal' | 'concise' | 'voice' | 'define' | 'translate' | 'ideas'
 
 export interface Option {
   text: string
@@ -19,7 +22,7 @@ export interface Change {
 export type AssistResult =
   | { kind: 'synonyms'; options: Option[] }
   | { kind: 'correct'; text: string; changes: Change[] }
-  | { kind: 'clearer' | 'formal' | 'concise' | 'translate'; options: Option[] }
+  | { kind: 'clearer' | 'formal' | 'concise' | 'voice' | 'translate'; options: Option[] }
   | { kind: 'define'; definition: string; example: string; register: string }
   | { kind: 'ideas'; ideas: { question: string; why: string }[] }
 
@@ -29,10 +32,15 @@ export const ASSIST_LABELS: Record<AssistKind, string> = {
   clearer: 'Más claro',
   formal: 'Más académico',
   concise: 'Más conciso',
+  voice: 'Con mi voz',
   define: 'Definición',
   translate: 'Traducir al español',
   ideas: 'Ideas para seguir'
 }
+
+/** The helpers' instructions, with the course framework (so terms and constructs are used precisely) and the student's voice. */
+export const assistInstructions = (s: Pick<Settings, 'research' | 'researchQuestion' | 'voice'>) =>
+  [INSTRUCTIONS, researchBrief(s), voiceBlock(s, { samples: true })].filter(Boolean).join('\n\n')
 
 const INSTRUCTIONS = `Sos un corrector de estilo de textos académicos en español. Ayudás a un estudiante de la Maestría en Dirección de Empresas (Universidad del CEMA, Argentina) a pulir la redacción de su trabajo final, que sigue las normas APA 7.
 Reglas:
@@ -40,6 +48,7 @@ Reglas:
 - Conservá el significado, los términos técnicos, los números y las citas entre paréntesis como (Autor, año).
 - Los marcadores ⟦1⟧, ⟦2⟧… son citas o notas al pie: conservalos exactamente, pegados a la palabra que acompañan.
 - Registro académico formal, impersonal cuando corresponda; sin voseo ni coloquialismos. Ortografía y puntuación según la RAE.
+- Si hay un bloque <student_voice>, tus reformulaciones respetan esa voz: mejorá el texto sin borrarle la forma de escribir del estudiante.
 - Las notas o explicaciones van en español, breves (una línea).
 - Respondé únicamente con el JSON pedido.`
 
@@ -51,6 +60,7 @@ const SCHEMAS: Record<AssistKind, object> = {
   clearer: OPTIONS,
   formal: OPTIONS,
   concise: OPTIONS,
+  voice: OPTIONS,
   translate: OPTIONS,
   correct: obj({ text: str, changes: { type: 'array', items: obj({ original: str, replacement: str, reason: str }) } }),
   define: obj({ definition: str, example: str, register: str }),
@@ -70,6 +80,8 @@ function prompt(kind: AssistKind, text: string, context: string): string {
       return `Proponé 3 versiones del texto en un registro académico más formal e impersonal, con el mismo contenido. En "note" explicá qué cambia.\n\nTexto:\n"""${text}"""${ctx}`
     case 'concise':
       return `Proponé 3 versiones más concisas del texto: eliminá redundancias y relleno sin perder información. En "note" indicá qué se quitó.\n\nTexto:\n"""${text}"""${ctx}`
+    case 'voice':
+      return `Proponé 3 versiones del texto reescritas con la voz del estudiante que describe <student_voice> (su ritmo, sus conectores, su sujeto gramatical, su vocabulario), con el mismo contenido, las mismas citas y extensión similar, y en registro académico. No agregues ideas. En "note" indicá en pocas palabras qué rasgo de su voz aplicaste.\n\nTexto:\n"""${text}"""${ctx}`
     case 'translate':
       return `Traducí el texto al español académico rioplatense formal. Devolvé 1 opción (o 2 si hay una alternativa terminológica relevante). Para términos técnicos sin traducción asentada, agregá el original entre paréntesis la primera vez. En "note" señalá decisiones de traducción importantes, o dejalo vacío.\n\nTexto:\n"""${text}"""`
     case 'ideas':
@@ -83,12 +95,12 @@ const norm = (s: string) => s.trim().toLowerCase()
 const cache = new Map<string, AssistResult>()
 
 export async function runAssist(kind: AssistKind, text: string, context: string): Promise<AssistResult> {
-  if (!useStore.getState().account?.connected) throw new Error(`Conectá tu cuenta de ${providerLabel()} en Settings para usar las ayudas con IA.`)
+  if (!useStore.getState().account?.connected) throw new Error(`Conectá tu cuenta de ${providerLabel()} en Ajustes para usar las ayudas con IA.`)
   const key = `${kind}\n${text}\n${context}`
   const hit = cache.get(key)
   if (hit) return hit
   const r = (await window.api.ai.assist({
-    instructions: INSTRUCTIONS,
+    instructions: assistInstructions(useStore.getState().settings),
     prompt: prompt(kind, text, context),
     schema: SCHEMAS[kind],
     model: aiModel().id

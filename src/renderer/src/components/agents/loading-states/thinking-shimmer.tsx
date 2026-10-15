@@ -11,7 +11,7 @@ export interface ThinkingShimmerProps {
 }
 
 export function ThinkingShimmer({
-  children = "Thinking…",
+  children = "Pensando…",
   duration = 1.8,
   className,
 }: ThinkingShimmerProps) {

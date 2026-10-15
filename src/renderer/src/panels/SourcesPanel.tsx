@@ -24,22 +24,22 @@ export function SourcesPanel({ noteId }: { noteId: string }) {
     <div className="min-h-0 flex-1 overflow-y-auto">
       <Collapsible
         id="sources.papers"
-        title="Sources in this note"
+        title="Fuentes de esta nota"
         marker="bg-kind-paper"
         count={papers.length || undefined}
         className="border-b"
         headerClassName="px-3.5 py-1.5"
         actions={
           <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => openPalette('link', noteId)}>
-            <Plus /> Link paper
+            <Plus /> Vincular paper
           </Button>
         }
       >
       {papers.length === 0 ? (
         <EmptyState
           icon={<Library />}
-          title="No sources yet"
-          description={`Link papers to give the assistant their full text, or cite them with ${mod}⇧C while writing.`}
+          title="Todavía no hay fuentes"
+          description={`Vinculá papers para darle su texto completo al asistente, o citalos con ${mod}⇧C mientras escribís.`}
         />
       ) : (
         <div className="flex flex-col gap-0.5 p-2">
@@ -50,18 +50,18 @@ export function SourcesPanel({ noteId }: { noteId: string }) {
                 <span className="flex min-w-0 flex-col">
                   <strong className="leading-snug font-[550]">{p.title}</strong>
                   <span className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-                    {authorLine(p) || 'Unknown author'}
+                    {authorLine(p) || 'Autor desconocido'}
                     {p.year ? ` · ${p.year}` : ''}
                     {cited.has(p.id) && (
                       <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-                        cited
+                        citado
                       </Badge>
                     )}
                   </span>
                 </span>
               </button>
               <div className="flex items-center gap-0.5 pl-7">
-                <Hint label="Insert citation at cursor">
+                <Hint label="Insertar cita en el cursor">
                   <Button
                     variant="ghost"
                     size="xs"
@@ -69,7 +69,7 @@ export function SourcesPanel({ noteId }: { noteId: string }) {
                     onClick={() => {
                       const f = focusedEditor()
                       if (f) f.editor.chain().focus().insertCitation({ paperId: p.id }).run()
-                      else void copyText(inText(p, style), 'In-text citation copied')
+                      else void copyText(inText(p, style), 'Cita en el texto copiada')
                     }}
                   >
                     {inText(p, style)}
@@ -78,7 +78,7 @@ export function SourcesPanel({ noteId }: { noteId: string }) {
                 {note.paperIds.includes(p.id) && !cited.has(p.id) && (
                   <IconButton
                     size="icon-xs"
-                    label="Unlink"
+                    label="Desvincular"
                     className="opacity-0 group-hover:opacity-100"
                     onClick={() => saveNote({ ...note, paperIds: note.paperIds.filter((x) => x !== p.id), updatedAt: Date.now() })}
                   >
@@ -94,12 +94,12 @@ export function SourcesPanel({ noteId }: { noteId: string }) {
       {refs.length > 0 && (
         <Collapsible
           id="sources.references"
-          title="References"
+          title="Referencias"
           count={refs.length}
           headerClassName="px-3.5 py-1.5"
           actions={
-            <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => void copyText(refs.map(plainRef).join('\n\n'), `${refs.length} references copied`)}>
-              <Copy /> Copy
+            <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => void copyText(refs.map(plainRef).join('\n\n'), `${refs.length} referencias copiadas`)}>
+              <Copy /> Copiar
             </Button>
           }
         >

@@ -72,7 +72,7 @@ function DefaultPreview({ item }: { item: PreviewRailItem }) {
 
 export function PreviewRail({
   items,
-  label = "Section navigation",
+  label = "Navegación por secciones",
   orientation = "vertical",
   activeId,
   defaultActiveId,

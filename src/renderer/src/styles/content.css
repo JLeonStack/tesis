@@ -132,6 +132,8 @@
 .matrix tbody tr { cursor: default; }
 .matrix tbody tr:hover td { background: color-mix(in oklab, var(--accent) 55%, var(--background)); }
 .matrix tbody tr.expanded td { background: var(--accent); }
+.matrix tbody tr.selected td { background: color-mix(in oklab, var(--brand) 7%, var(--background)); }
+.matrix tbody tr.selected td:first-child { box-shadow: inset 2px 0 0 var(--brand); }
 .comment-mark {
   position: absolute;
   right: -14px;

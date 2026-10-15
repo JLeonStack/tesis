@@ -3,7 +3,7 @@ import { motion } from 'motion/react'
 import { Highlighter, NotebookPen, Copy, Trash2, FileOutput, MessageSquareText } from 'lucide-react'
 import type { HighlightColor } from '@shared/types'
 import { createNote, deleteAnnotation, jumpTo, useStore } from '../store'
-import { COLORS, COLOR_VAR } from '../reader/SelectionToolbar'
+import { COLORS, COLOR_LABELS, COLOR_VAR } from '../reader/SelectionToolbar'
 import { addQuoteToNote, autoQuote } from '../editor/noteBridge'
 import { copyText } from '../lib/exporting'
 import { inText } from '../lib/citation'
@@ -34,7 +34,7 @@ export function HighlightsPanel({ paperId }: { paperId: string }) {
   )
 
   if (!all.length) {
-    return <EmptyState icon={<Highlighter />} title="No highlights yet" description="Select text in the paper and pick a color, or press H." />
+    return <EmptyState icon={<Highlighter />} title="Todavía no hay resaltados" description="Seleccioná texto del paper y elegí un color, o apretá H." />
   }
 
   const exportToNote = () => {
@@ -45,9 +45,9 @@ export function HighlightsPanel({ paperId }: { paperId: string }) {
       ...(a.comment ? [{ type: 'paragraph', content: [{ type: 'text', text: a.comment }] }] : [])
     ])
     const note = createNote({
-      title: `Highlights: ${paper?.title ?? ''}`,
+      title: `Resaltados: ${paper?.title ?? ''}`,
       paperIds: [paperId],
-      content: { type: 'doc', content: [{ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Key passages' }] }, ...content] }
+      content: { type: 'doc', content: [{ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Pasajes clave' }] }, ...content] }
     })
     for (const { q } of quotes) q.bind(note.id)
   }
@@ -65,16 +65,16 @@ export function HighlightsPanel({ paperId }: { paperId: string }) {
       <div className="flex items-center gap-2 border-b px-3 py-2">
         <ColorSelector value={color} onValueChange={(v) => setColor(v as HighlightColor | 'all')}>
           <ColorSelectorList className="gap-0.5 p-0">
-            <ColorSelectorItem value="all" color={ALL} ringColor="color-mix(in oklab, var(--foreground) 35%, transparent)" label="All colors" className="size-7 border-0 bg-transparent [&>span:last-child]:size-3.5" />
+            <ColorSelectorItem value="all" color={ALL} ringColor="color-mix(in oklab, var(--foreground) 35%, transparent)" label="Todos los colores" className="size-7 border-0 bg-transparent [&>span:last-child]:size-3.5" />
             {COLORS.map((c) => (
-              <ColorSelectorItem key={c} value={c} color={COLOR_VAR[c]} label={`Only ${c}`} className="size-7 border-0 bg-transparent [&>span:last-child]:size-3.5" />
+              <ColorSelectorItem key={c} value={c} color={COLOR_VAR[c]} label={`Solo ${COLOR_LABELS[c]}`} className="size-7 border-0 bg-transparent [&>span:last-child]:size-3.5" />
             ))}
           </ColorSelectorList>
         </ColorSelector>
         <span className="flex-1" />
-        <Hint label="Create a note with every highlight, cited">
+        <Hint label="Crear una nota con todos los resaltados, citados">
           <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={exportToNote}>
-            <FileOutput /> To note
+            <FileOutput /> Pasar a nota
           </Button>
         </Hint>
       </div>
@@ -84,7 +84,7 @@ export function HighlightsPanel({ paperId }: { paperId: string }) {
             key={page}
             local
             group={`highlights:${paperId}`}
-            title={`Page ${page}`}
+            title={`Página ${page}`}
             count={items.length}
             summary={(items[0].translation ?? items[0].text).slice(0, 60)}
             headerClassName="px-1 pt-2"
@@ -112,17 +112,17 @@ export function HighlightsPanel({ paperId }: { paperId: string }) {
                     </p>
                   )}
                   <div className="-mb-1 -ml-1.5 flex gap-0.5 pt-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
-                    <IconButton size="icon-xs" label="Add to note" onClick={() => addQuoteToNote(a.paperId, a.page, a.text, a.id)}>
+                    <IconButton size="icon-xs" label="Agregar a una nota" onClick={() => addQuoteToNote(a.paperId, a.page, a.text, a.id)}>
                       <NotebookPen />
                     </IconButton>
                     <IconButton
                       size="icon-xs"
-                      label="Copy with citation"
-                      onClick={() => paper && void copyText(`“${a.text}” ${inText(paper, style, a.page)}`, 'Quote copied with citation')}
+                      label="Copiar la cita textual con la referencia"
+                      onClick={() => paper && void copyText(`“${a.text}” ${inText(paper, style, a.page)}`, 'Cita textual copiada con la referencia')}
                     >
                       <Copy />
                     </IconButton>
-                    <IconButton size="icon-xs" label="Delete" className="hover:text-destructive" onClick={() => deleteAnnotation(a.id)}>
+                    <IconButton size="icon-xs" label="Eliminar el resaltado" className="hover:text-destructive" onClick={() => deleteAnnotation(a.id)}>
                       <Trash2 />
                     </IconButton>
                   </div>

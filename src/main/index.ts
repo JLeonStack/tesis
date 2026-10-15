@@ -125,68 +125,73 @@ function buildMenu(): void {
     {
       label: app.name,
       submenu: [
-        { role: 'about' },
+        { role: 'about', label: `Acerca de ${app.name}` },
         { type: 'separator' },
-        { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: menuSend('settings') },
+        { label: 'Ajustes…', accelerator: 'CmdOrCtrl+,', click: menuSend('settings') },
         { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
+        { role: 'hide', label: `Ocultar ${app.name}` },
+        { role: 'hideOthers', label: 'Ocultar las demás' },
+        { role: 'unhide', label: 'Mostrar todo' },
         { type: 'separator' },
-        { role: 'quit' }
+        { role: 'quit', label: `Salir de ${app.name}` }
       ]
     },
     {
-      label: 'File',
+      label: 'Archivo',
       submenu: [
-        { label: 'Import PDFs…', accelerator: 'CmdOrCtrl+O', click: menuSend('import') },
-        { label: 'New Note', accelerator: 'CmdOrCtrl+N', click: menuSend('new-note') },
-        { label: 'Open Thesis', accelerator: 'CmdOrCtrl+Alt+T', click: menuSend('open-thesis') },
-        { label: 'Open Whiteboard', accelerator: 'CmdOrCtrl+Alt+B', click: menuSend('open-board') },
-        { label: 'Open Literature Matrix', accelerator: 'CmdOrCtrl+Alt+L', click: menuSend('open-matrix') },
+        { label: 'Importar PDFs…', accelerator: 'CmdOrCtrl+O', click: menuSend('import') },
+        { label: 'Nueva nota', accelerator: 'CmdOrCtrl+N', click: menuSend('new-note') },
+        { label: 'Abrir la tesis', accelerator: 'CmdOrCtrl+Alt+T', click: menuSend('open-thesis') },
+        { label: 'Abrir la pizarra', accelerator: 'CmdOrCtrl+Alt+B', click: menuSend('open-board') },
+        { label: 'Abrir la matriz de literatura', accelerator: 'CmdOrCtrl+Alt+L', click: menuSend('open-matrix') },
+        { label: 'Abrir las tareas', accelerator: 'CmdOrCtrl+Alt+D', click: menuSend('open-tasks') },
+        { label: 'Abrir el conocimiento', accelerator: 'CmdOrCtrl+Alt+K', click: menuSend('open-wiki') },
+        { label: 'Abrir el asistente', accelerator: 'CmdOrCtrl+Alt+A', click: menuSend('open-agent') },
+        { label: 'Abrir el marco de investigación', accelerator: 'CmdOrCtrl+Alt+M', click: menuSend('open-research') },
+        { label: 'Abrir el análisis de datos', accelerator: 'CmdOrCtrl+Alt+Y', click: menuSend('open-analysis') },
         { type: 'separator' },
-        { label: 'Export Note as Markdown…', accelerator: 'CmdOrCtrl+Shift+E', click: menuSend('export-note') },
-        { label: 'Export Thesis as Word…', click: menuSend('export-thesis-docx') },
-        { label: 'Export Thesis as PDF…', click: menuSend('export-thesis-pdf') },
-        { label: 'Export Bibliography…', click: menuSend('export-bib') },
+        { label: 'Exportar la nota como Markdown…', accelerator: 'CmdOrCtrl+Shift+E', click: menuSend('export-note') },
+        { label: 'Exportar la tesis como Word…', click: menuSend('export-thesis-docx') },
+        { label: 'Exportar la tesis como PDF…', click: menuSend('export-thesis-pdf') },
+        { label: 'Exportar la bibliografía…', click: menuSend('export-bib') },
         { type: 'separator' },
-        { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: menuSend('close-tab') }
+        { label: 'Cerrar la pestaña', accelerator: 'CmdOrCtrl+W', click: menuSend('close-tab') }
       ]
     },
     {
-      label: 'Edit',
+      label: 'Edición',
       submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
+        { role: 'undo', label: 'Deshacer' },
+        { role: 'redo', label: 'Rehacer' },
         { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'pasteAndMatchStyle' },
-        { role: 'selectAll' },
+        { role: 'cut', label: 'Cortar' },
+        { role: 'copy', label: 'Copiar' },
+        { role: 'paste', label: 'Pegar' },
+        { role: 'pasteAndMatchStyle', label: 'Pegar con el mismo estilo' },
+        { role: 'selectAll', label: 'Seleccionar todo' },
         { type: 'separator' },
-        { label: 'Find in Paper', accelerator: 'CmdOrCtrl+F', click: menuSend('find') }
+        { label: 'Buscar en el paper', accelerator: 'CmdOrCtrl+F', click: menuSend('find') }
       ]
     },
     {
-      label: 'View',
+      label: 'Ver',
       submenu: [
-        { label: 'Command Palette', accelerator: 'CmdOrCtrl+K', click: menuSend('palette') },
+        { label: 'Paleta de comandos', accelerator: 'CmdOrCtrl+K', click: menuSend('palette') },
         { type: 'separator' },
-        { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+\\', click: menuSend('toggle-sidebar') },
-        { label: 'Toggle Assistant', accelerator: 'CmdOrCtrl+J', click: menuSend('toggle-assistant') },
-        { label: 'Open Side Note', accelerator: 'CmdOrCtrl+Shift+N', click: menuSend('side-note') },
-        { label: 'Skim Mode', accelerator: 'CmdOrCtrl+Alt+S', click: menuSend('skim') },
+        { label: 'Mostrar u ocultar la barra lateral', accelerator: 'CmdOrCtrl+\\', click: menuSend('toggle-sidebar') },
+        { label: 'Mostrar u ocultar el asistente', accelerator: 'CmdOrCtrl+J', click: menuSend('toggle-assistant') },
+        { label: 'Abrir una nota al margen', accelerator: 'CmdOrCtrl+Shift+N', click: menuSend('side-note') },
+        { label: 'Modo lectura rápida', accelerator: 'CmdOrCtrl+Alt+S', click: menuSend('skim') },
         { type: 'separator' },
-        { label: 'Zoom In', accelerator: 'CmdOrCtrl+=', click: menuSend('zoom-in') },
-        { label: 'Zoom Out', accelerator: 'CmdOrCtrl+-', click: menuSend('zoom-out') },
-        { label: 'Fit Width', accelerator: 'CmdOrCtrl+0', click: menuSend('zoom-fit') },
+        { label: 'Acercar', accelerator: 'CmdOrCtrl+=', click: menuSend('zoom-in') },
+        { label: 'Alejar', accelerator: 'CmdOrCtrl+-', click: menuSend('zoom-out') },
+        { label: 'Ajustar al ancho', accelerator: 'CmdOrCtrl+0', click: menuSend('zoom-fit') },
         { type: 'separator' },
-        { role: 'togglefullscreen' },
+        { role: 'togglefullscreen', label: 'Pantalla completa' },
         ...(isDev ? ([{ type: 'separator' }, { role: 'reload' }, { role: 'toggleDevTools' }] as MenuItemConstructorOptions[]) : [])
       ]
     },
-    { role: 'windowMenu' }
+    { role: 'windowMenu', label: 'Ventana' }
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
@@ -245,8 +250,8 @@ function registerIpc(): void {
   ipcMain.handle('papers:import', async (_e, paths?: string[]) => {
     if (!paths?.length) {
       const r = await dialog.showOpenDialog(win!, {
-        title: 'Import papers',
-        buttonLabel: 'Import',
+        title: 'Importar papers',
+        buttonLabel: 'Importar',
         properties: ['openFile', 'multiSelections'],
         filters: [{ name: 'PDF', extensions: ['pdf'] }]
       })
@@ -361,7 +366,7 @@ async function renderPdf(html: string): Promise<Buffer> {
     await w.loadFile(tmp)
     const deadline = Date.now() + 90_000
     while (!(await w.webContents.executeJavaScript('window.__pagedDone === true'))) {
-      if (Date.now() > deadline) throw new Error('Timed out while paginating the thesis')
+      if (Date.now() > deadline) throw new Error('Se agotó el tiempo al paginar la tesis')
       await new Promise((r) => setTimeout(r, 150))
     }
     return await w.webContents.printToPDF({ preferCSSPageSize: true, printBackground: true })

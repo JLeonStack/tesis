@@ -41,7 +41,7 @@ function getMessagePreview(
 ) {
   const text = getMessageText(message);
   if (!text) {
-    return { label: "Message", description: undefined };
+    return { label: "Mensaje", description: undefined };
   }
 
   if (text.length <= PREVIEW_TITLE_LENGTH) {
@@ -110,10 +110,10 @@ export function MessageScroller({
   followThreshold = 56,
   smooth = true,
   onFollowChange,
-  label = "Conversation",
+  label = "Conversación",
   busy,
   navigation,
-  navigationLabel = "Message navigation",
+  navigationLabel = "Navegación de mensajes",
   viewportClassName,
   contentClassName,
   railClassName,
@@ -238,7 +238,7 @@ export function MessageScroller({
         id,
         label: preview.label,
         description: preview.description,
-        ariaLabel: `Go to ${sender} message ${index + 1} of ${messages.length}`,
+        ariaLabel: `Ir al mensaje ${index + 1} de ${messages.length}`,
       };
     });
 

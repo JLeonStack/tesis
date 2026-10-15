@@ -28,6 +28,8 @@ export default defineConfig({
         'pagedjs-dist': resolve(__dirname, 'node_modules/pagedjs/dist')
       }
     },
+    // Loaded as raw text for the print window; pre-bundling a `?raw` import breaks it in dev.
+    optimizeDeps: { exclude: ['pagedjs-dist'] },
     plugins: [
       react(),
       tailwindcss(),

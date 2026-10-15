@@ -36,8 +36,8 @@ function chips(html: string, resolve: CiteResolver): string {
       // The source label shows once; further pages of the same source are compact chips (less noise, same targets).
       ;(c.pages.length ? c.pages : [null]).forEach((page, i) => {
         out.push(
-          `<button class="cite-chip" data-src="${c.key}"${page ? ` data-page="${page.first}"` : ''} title="Open ${label}${
-            page ? `, page ${page.first}` : ''
+          `<button class="cite-chip" data-src="${c.key}"${page ? ` data-page="${page.first}"` : ''} title="Abrir ${label}${
+            page ? `, página ${page.first}` : ''
           }">${i ? '' : label}${page ? `<span>p.${page.label}</span>` : ''}</button>`
         )
       })

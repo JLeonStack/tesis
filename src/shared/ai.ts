@@ -14,27 +14,27 @@ export const AI_MODELS: AiModel[] = [
   { id: 'claude-opus-5-5', label: 'Opus 5.5', provider: 'claude', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] }
 ]
 
-export const DEFAULT_PROVIDER: AiProvider = 'chatgpt'
-export const DEFAULT_EFFORT: AiEffort = 'medium'
+export const DEFAULT_PROVIDER: AiProvider = 'claude'
+export const DEFAULT_EFFORT: AiEffort = 'high'
 
 export const EFFORT_ORDER: AiEffort[] = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']
 
 export const EFFORT_LABELS: Record<AiEffort, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  xhigh: 'Extra high',
-  max: 'Max',
+  low: 'Bajo',
+  medium: 'Medio',
+  high: 'Alto',
+  xhigh: 'Muy alto',
+  max: 'Máximo',
   ultra: 'Ultra'
 }
 
 export const EFFORT_HINTS: Record<AiEffort, string> = {
-  low: 'Fastest answers, light reasoning',
-  medium: 'Balanced speed and depth (recommended)',
-  high: 'Deeper reasoning for hard questions',
-  xhigh: 'Extra deep; noticeably slower',
-  max: 'Maximum depth; slow and uses more of your plan',
-  ultra: 'Longest reasoning; slowest'
+  low: 'Respuestas más rápidas, razonamiento liviano',
+  medium: 'Equilibrio entre velocidad y profundidad',
+  high: 'Razonamiento más profundo para preguntas difíciles (recomendado)',
+  xhigh: 'Todavía más profundo; bastante más lento',
+  max: 'Profundidad máxima; lento y consume más de tu plan',
+  ultra: 'El razonamiento más largo; el más lento'
 }
 
 export function providerOf(model: string | null | undefined): AiProvider {

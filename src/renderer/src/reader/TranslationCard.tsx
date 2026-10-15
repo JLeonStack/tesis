@@ -7,7 +7,7 @@ import { TextShimmer } from '@/components/motion/text-shimmer'
 import { IconButton } from '../components/common'
 import { useStore } from '../store'
 import { copyText } from '../lib/exporting'
-import { translate, type TranslationState } from '../lib/translate'
+import { langLabel, translate, type TranslationState } from '../lib/translate'
 
 const WIDTH = 400
 const MIN_SPACE = 240
@@ -75,7 +75,7 @@ export function TranslationCard({
     <motion.div
       ref={ref}
       role="dialog"
-      aria-label={`Translation to ${lang}`}
+      aria-label={`Traducción a ${langLabel(lang)}`}
       className="tr-card fixed z-[60] flex flex-col overflow-hidden rounded-xl border bg-popover shadow-xl shadow-black/10"
       style={{
         width: WIDTH,
@@ -96,14 +96,14 @@ export function TranslationCard({
     >
       <div className="flex h-9 flex-none items-center gap-1.5 border-b pr-1 pl-3">
         <Languages className="size-3.5 text-brand-text" />
-        <span className="text-xs font-semibold">{lang}</span>
+        <span className="text-xs font-semibold">{langLabel(lang)}</span>
         <span className="flex-1" />
         {state.done && (
-          <IconButton size="icon-xs" label="Translate again" onClick={() => setAttempt((n) => n + 1)}>
+          <IconButton size="icon-xs" label="Traducir de nuevo" onClick={() => setAttempt((n) => n + 1)}>
             <RotateCcw />
           </IconButton>
         )}
-        <IconButton size="icon-xs" label="Close" keys={['esc']} onClick={onClose}>
+        <IconButton size="icon-xs" label="Cerrar" keys={['esc']} onClick={onClose}>
           <X />
         </IconButton>
       </div>
@@ -114,11 +114,11 @@ export function TranslationCard({
             <p>{state.error}</p>
             {useStore.getState().account?.connected ? (
               <Button variant="outline" size="xs" onClick={() => setAttempt((n) => n + 1)}>
-                <RotateCcw /> Try again
+                <RotateCcw /> Reintentar
               </Button>
             ) : (
               <Button variant="outline" size="xs" onClick={() => (onClose(), useStore.setState({ settingsOpen: true }))}>
-                Open Settings
+                Abrir Ajustes
               </Button>
             )}
           </div>
@@ -130,7 +130,7 @@ export function TranslationCard({
         ) : (
           <div className="flex flex-col gap-2 py-0.5">
             <TextShimmer duration={1.6} className="text-xs font-medium">
-              Translating…
+              Traduciendo…
             </TextShimmer>
             <Skeleton className="h-3 w-full" />
             <Skeleton className="h-3 w-[92%]" />
@@ -144,13 +144,13 @@ export function TranslationCard({
         animate={{ opacity: ready ? 1 : 0.5 }}
       >
         <Button variant="ghost" size="xs" disabled={!ready} onClick={() => onToNote(state.text)}>
-          <NotebookPen /> Add to note
+          <NotebookPen /> Agregar a una nota
         </Button>
         <Button variant="ghost" size="xs" disabled={!ready} onClick={() => onHighlight(state.text)}>
-          <Highlighter /> Save on highlight
+          <Highlighter /> Guardar en el resaltado
         </Button>
         <span className="flex-1" />
-        <IconButton size="icon-xs" label="Copy translation" disabled={!ready} onClick={() => void copyText(state.text, 'Translation copied')}>
+        <IconButton size="icon-xs" label="Copiar la traducción" disabled={!ready} onClick={() => void copyText(state.text, 'Traducción copiada')}>
           <Copy />
         </IconButton>
       </motion.div>

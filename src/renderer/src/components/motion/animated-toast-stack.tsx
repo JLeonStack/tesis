@@ -488,7 +488,7 @@ const ToastItem = memo(function ToastItem({
               <button
                 type="button"
                 onClick={() => onDismiss?.(toast.id)}
-                aria-label="Dismiss toast"
+                aria-label="Descartar notificación"
                 className={cn(
                   "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground",
                   classNames?.close,

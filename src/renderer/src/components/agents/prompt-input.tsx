@@ -91,8 +91,8 @@ export function PromptInput({
   leadingAction,
   className,
   disabled,
-  placeholder = "Ask the agent to do something…",
-  "aria-label": ariaLabel = "Prompt",
+  placeholder = "Pedile algo al asistente…",
+  "aria-label": ariaLabel = "Mensaje para el asistente",
   onKeyDown,
   ...textareaProps
 }: PromptInputProps) {
@@ -209,7 +209,7 @@ export function PromptInput({
                 variant="ghost"
                 size="icon"
                 disabled={disabled || loading}
-                aria-label="Add to prompt"
+                aria-label="Agregar al mensaje"
                 className="size-8 rounded-full"
               >
                 <motion.span
@@ -276,7 +276,7 @@ export function PromptInput({
                   </span>
                 ) : null}
                 <span className="truncate text-muted-foreground">
-                  {currentModel?.label ?? "Choose model"}
+                  {currentModel?.label ?? "Elegí un modelo"}
                 </span>
               </span>
             </SelectTrigger>
@@ -336,7 +336,7 @@ export function PromptInput({
           type={loading ? "button" : "submit"}
           size="icon"
           disabled={loading ? !onStop : !canSubmit}
-          aria-label={loading ? "Stop generating" : "Send prompt"}
+          aria-label={loading ? "Detener la generación" : "Enviar el mensaje"}
           onClick={loading ? onStop : undefined}
           className="ml-auto size-8 rounded-full"
         >

@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 export function Rail({ side, children, className }: { side: 'left' | 'right'; children: ReactNode; className?: string }) {
   return (
     <nav
-      aria-label={side === 'left' ? 'Library' : 'Assistant and paper tools'}
+      aria-label={side === 'left' ? 'Biblioteca' : 'Asistente y herramientas del paper'}
       className={cn(
         'flex min-h-0 flex-col items-center gap-1 pb-2.5',
         side === 'left' ? 'border-r border-sidebar-border bg-sidebar' : 'border-l bg-card',
@@ -44,7 +44,7 @@ export function RailButton({
   dot?: 'busy' | 'new' | null
   side: 'left' | 'right'
 }) {
-  const status = dot === 'busy' ? ', writing' : dot === 'new' ? ', new answer' : badge ? `, ${badge}` : ''
+  const status = dot === 'busy' ? ', escribiendo' : dot === 'new' ? ', respuesta nueva' : badge ? `, ${badge}` : ''
   return (
     <Hint label={label} keys={keys} side={side === 'left' ? 'right' : 'left'}>
       <button

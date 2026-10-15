@@ -90,6 +90,30 @@ const PHRASES: PhraseRule[] = [
   { re: word('muy|bastante|realmente|básicamente|obviamente|claramente|totalmente|sumamente'), rule: 'intensificador', title: 'Intensificador', detail: 'Los intensificadores debilitan el tono académico. Mejor precisar o cuantificar.', fixes: [''], tone: 'info' },
   { re: word('de alguna manera|de algún modo|en cierto sentido'), rule: 'vago', title: 'Expresión imprecisa', detail: 'Evitá la vaguedad: explicá de qué manera.', fixes: [''], tone: 'info' },
   { re: word('etc\\.?|etcétera'), rule: 'etc', title: '«etc.»', detail: 'En textos académicos conviene enumerar todo o cerrar con «entre otros».', fixes: ['entre otros'], tone: 'info' },
+  // From the UCEMA writing advice (Consejos para la corrección del trabajo final).
+  {
+    re: /(?<=(?:^|[.;:]\s+|,\s+y\s+))(?:el|la|los|las) mism(?:o|a|os|as)(?= (?:se|es|son|fue|fueron|está|están|era|eran|tiene|tienen|ha|han|había|habían|puede|pueden|presenta|presentan|cuenta|cuentan|consiste|incluye|incluyen|permite|permiten)(?![\p{L}]))/giu,
+    rule: 'mismo',
+    title: '«el mismo» como pronombre',
+    detail: '«Mismo» con valor anafórico (en lugar de un pronombre) es incorrecto. Usá «este», «esta», «estos», «estas».',
+    fixes: (m) => [{ el: 'este', la: 'esta', los: 'estos', las: 'estas' }[m.split(' ')[0].toLowerCase()] ?? 'este']
+  },
+  {
+    re: word('(?:del|de la|de los|de las) mism(?:o|a|os|as)(?=\\s*[.,;:)]|$)'),
+    rule: 'mismo',
+    title: '«de la misma» como pronombre',
+    detail: '«Mismo» con valor anafórico es incorrecto. Reformulá con un posesivo («su», «sus») o repetí el sustantivo.',
+    fixes: []
+  },
+  {
+    re: word('realiz(?:ar|a|an|ó|aron|ado|ada|ados|adas|ando|ará|arán|aría|arían|e|en)'),
+    rule: 'comodin',
+    title: 'Verbo comodín',
+    detail: '«Realizar» es un verbo de sentido genérico. Precisá: «efectuar», «llevar a cabo», «aplicar», «desarrollar», «administrar» (un cuestionario)…',
+    fixes: [],
+    tone: 'info'
+  },
+  { re: word('aspectos?|elementos?|interesantes?'), rule: 'comodin', title: 'Palabra comodín', detail: 'Sustantivo o adjetivo de sentido genérico. Nombrá el concepto concreto.', fixes: [], tone: 'info' },
   { re: word('yo|creo que|pienso que|me parece que|opino que|en mi opinión'), rule: 'persona', title: 'Primera persona', detail: 'Suele preferirse la forma impersonal: «se considera», «se observa», «puede afirmarse».', fixes: [], tone: 'info' }
 ]
 
@@ -152,7 +176,13 @@ function lintText(text: string): Found[] {
   let wordIndex = 0
   for (const s of sentences) {
     const words = [...s[0].matchAll(/[\p{L}][\p{L}'’-]*/gu)]
-    if (words.length > 40) {
+    // -mente adverbs piling up in one sentence (an anglicism, per the UCEMA advice).
+    const mente = words.filter((w) => w[0].length >= 8 && /mente$/iu.test(w[0]))
+    for (const w of mente.slice(1)) {
+      const at = s.index! + w.index!
+      out.push({ start: at, end: at + w[0].length, rule: 'mente', tone: 'info', title: 'Varios adverbios en -mente', detail: 'Hay más de un adverbio en -mente en la oración. Probá «con» + sustantivo («con claridad») o reformular.', fixes: [], ignoreKey: `mente:${fold(w[0])}` })
+    }
+    if (words.length > 30) {
       const lead = s[0].match(/^\s*/)![0].length
       out.push({
         start: s.index! + lead,
@@ -160,7 +190,7 @@ function lintText(text: string): Found[] {
         rule: 'larga',
         tone: 'long',
         title: `Oración larga (${words.length} palabras)`,
-        detail: 'Las oraciones de más de 40 palabras cuestan de seguir. Considerá dividirla.',
+        detail: 'La guía de redacción de UCEMA recomienda oraciones de 15 a 30 palabras. Considerá dividirla.',
         fixes: [],
         ignoreKey: `larga:${fold(s[0].trim().slice(0, 40))}`
       })
@@ -362,5 +392,8 @@ export const LINT_RULE_LABELS: Record<string, string> = {
   espacios: 'Puntuación',
   numeros: 'APA',
   larga: 'Claridad',
+  mismo: 'Uso',
+  comodin: 'Precisión',
+  mente: 'Estilo',
   repeticion: 'Repetición'
 }

@@ -4,15 +4,21 @@ import StarterKit from '@tiptap/starter-kit'
 import Highlight from '@tiptap/extension-highlight'
 import Typography from '@tiptap/extension-typography'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { closeHistory } from '@tiptap/pm/history'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Node as PMNode, Schema } from '@tiptap/pm/model'
 import { Citation, SourceQuote } from '../editor/extensions'
 import { useStore } from '../store'
-import { analyze } from './analyze'
+import { analyze, runInOf } from './analyze'
+import { Pagination } from './pagination'
+import { guideTip } from './guideTip'
 import { StyleCheck } from './lint'
+import { CitationCheck } from './uncited'
 import { Autocomplete } from './autocomplete'
-import { THESIS_CITE, italicHtml, referenceEntries } from './references'
+import { THESIS_CITE, italicHtml, referenceEntries, thesisReferenceIds } from './references'
+import { cleanSvg, figureHtml, tableHtml, type ApaFigure, type ApaTable } from './tables'
 import {
+  BODY_OUTLINE,
   DEFAULT_HEADING_GUIDANCE,
   HEADING_GUIDANCE,
   SECTION_GUIDANCE,
@@ -20,6 +26,8 @@ import {
   SECTION_KINDS,
   defaultSectionContent,
   normalizeHeading,
+  outlineNode,
+  sectionTitle,
   type SectionKind
 } from './template'
 
@@ -30,6 +38,12 @@ declare module '@tiptap/core' {
       setThesisStyle: (level: number) => ReturnType
       insertFootnote: () => ReturnType
       insertPageBreak: () => ReturnType
+      insertApaTable: (t: ApaTable) => ReturnType
+      insertApaFigure: (f: ApaFigure) => ReturnType
+      /** Paragraphs of AI-drafted text, marked until the student reviews them. */
+      insertDraft: (paragraphs: string[], logId: string) => ReturnType
+      /** Takes the AI-draft mark off one draft's text (the student reviewed and owns it). */
+      clearDraft: (logId: string) => ReturnType
     }
   }
 }
@@ -63,7 +77,9 @@ const Section = Node.create({
 
   addAttributes() {
     return {
-      kind: { default: 'cuerpo', parseHTML: (el) => el.getAttribute('data-kind'), renderHTML: (a) => ({ 'data-kind': a.kind }) }
+      kind: { default: 'cuerpo', parseHTML: (el) => el.getAttribute('data-kind'), renderHTML: (a) => ({ 'data-kind': a.kind }) },
+      /** The student's title for the sheet (null: the template's). */
+      title: { default: null, parseHTML: (el) => el.getAttribute('data-title'), renderHTML: (a) => (a.title ? { 'data-title': a.title } : {}) }
     }
   },
 
@@ -87,13 +103,41 @@ const Section = Node.create({
       label.className = 'sheet-label'
       label.contentEditable = 'false'
       label.textContent = info.optional ? `${info.label} · opcional` : info.label
+      if (SECTION_GUIDANCE[kind]) label.append(guideTip(SECTION_GUIDANCE[kind]))
       dom.append(label)
 
+      // The sheet's title is the template's until the student writes their own (empty brings it back).
+      let titleInput: HTMLInputElement | null = null
       if (info.title) {
         const title = document.createElement('div')
         title.className = 'sheet-title'
         title.contentEditable = 'false'
-        title.textContent = info.title
+        const input = document.createElement('input')
+        input.className = 'sheet-title-input'
+        input.spellcheck = true
+        input.placeholder = info.title
+        input.title = 'Título de la sección: escribí el tuyo o dejalo vacío para usar el de la plantilla'
+        input.value = sectionTitle(kind, node.attrs.title) ?? ''
+        const commit = () => {
+          const pos = typeof getPos === 'function' ? getPos() : undefined
+          if (pos == null) return
+          const value = input.value.trim()
+          const next = !value || value === info.title ? null : value
+          if (!value) input.value = info.title ?? ''
+          if (next === (current.attrs.title ?? null)) return
+          editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, 'title', next))
+        }
+        input.addEventListener('change', commit)
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === 'Escape') {
+            if (e.key === 'Escape') input.value = sectionTitle(kind, current.attrs.title) ?? ''
+            e.preventDefault()
+            input.blur()
+            editor.commands.focus()
+          }
+        })
+        title.append(input)
+        titleInput = input
         dom.append(title)
       }
 
@@ -140,6 +184,7 @@ const Section = Node.create({
         update: (n) => {
           if (n.type !== current.type || n.attrs.kind !== kind) return false
           current = n
+          if (titleInput && document.activeElement !== titleInput) titleInput.value = sectionTitle(kind, n.attrs.title) ?? ''
           return true
         },
         ignoreMutation: (m) => m.type !== 'selection' && !contentDOM.contains(m.target),
@@ -173,8 +218,10 @@ function sectionShapeOk(doc: PMNode): boolean {
 
 function rebuildSections(doc: PMNode, schema: Schema): PMNode[] {
   const byKind = new Map<string, PMNode[]>()
+  const titles = new Map<string, string | null>()
   doc.forEach((sec) => {
     const kind = sec.type.name === 'section' ? sec.attrs.kind : 'cuerpo'
+    if (sec.type.name === 'section' && sec.attrs.title) titles.set(kind, sec.attrs.title)
     const kids: PMNode[] = []
     if (sec.type.name === 'section') sec.forEach((c) => c.type.name !== 'tocBlock' && c.type.name !== 'referenceList' && kids.push(c))
     else kids.push(sec)
@@ -187,7 +234,7 @@ function rebuildSections(doc: PMNode, schema: Schema): PMNode[] {
     if (kind === 'toc') content = [schema.nodes.tocBlock.create()]
     else if (kind === 'referencias') content = [schema.nodes.referenceList.create(), ...kids]
     else content = kids.length ? kids : fresh(kind)
-    return schema.nodes.section.create({ kind }, content)
+    return schema.nodes.section.create({ kind, title: titles.get(kind) ?? null }, content)
   })
 }
 
@@ -261,12 +308,13 @@ export interface TocEntry {
 /** Resumen first (the TOC never lists itself), then L1–L3 headings, then Referencias and Apéndices. */
 export function tocEntries(doc: PMNode): TocEntry[] {
   const { outline } = analyze(doc)
-  const out: TocEntry[] = [{ level: 1, text: 'Resumen', pos: sectionPos(doc, 'resumen') }]
+  const title = (kind: SectionKind) => sectionTitle(kind, sectionNode(doc, kind)?.attrs.title) ?? ''
+  const out: TocEntry[] = [{ level: 1, text: title('resumen'), pos: sectionPos(doc, 'resumen') }]
   for (const h of outline) if (h.section === 'cuerpo' && h.level <= 3) out.push({ level: h.level, text: h.text, pos: h.pos })
-  out.push({ level: 1, text: 'Referencias', pos: sectionPos(doc, 'referencias') })
+  out.push({ level: 1, text: title('referencias'), pos: sectionPos(doc, 'referencias') })
   const apx = sectionNode(doc, 'apendices')
   if (apx && apx.textContent.trim()) {
-    out.push({ level: 1, text: 'Apéndices', pos: sectionPos(doc, 'apendices') })
+    out.push({ level: 1, text: title('apendices'), pos: sectionPos(doc, 'apendices') })
     for (const h of outline) if (h.section === 'apendices' && h.level <= 3) out.push({ level: h.level, text: h.text, pos: h.pos })
   }
   return out
@@ -286,6 +334,43 @@ function sectionPos(doc: PMNode, kind: SectionKind): number | null {
     if (pos == null && n.attrs.kind === kind) pos = offset
   })
   return pos
+}
+
+/**
+ * Adds the template's body headings that the thesis doesn't have (same text, at any level),
+ * each one after the ones that come before it in the template; nothing is removed or moved.
+ * Returns how many were added (undo brings the body back).
+ */
+export function completeOutline(editor: Editor): number {
+  const tr = editor.state.tr
+  const norm = (t: string) => normalizeHeading(t.replace(/\.$/, ''))
+  let insertAt: number | null = null
+  let added = 0
+  for (const o of BODY_OUTLINE) {
+    let secPos = -1
+    tr.doc.forEach((n, off) => n.attrs.kind === 'cuerpo' && (secPos = off))
+    const sec = tr.doc.nodeAt(secPos)
+    if (!sec) return 0
+    const blocks: { pos: number; heading: string | null }[] = []
+    sec.forEach((child, off) =>
+      blocks.push({ pos: secPos + 1 + off, heading: child.type.name === 'heading' ? child.textContent : child.type.name === 'paragraph' ? (runInOf(child)?.text ?? null) : null })
+    )
+    const i = blocks.findIndex((b) => b.heading != null && norm(b.heading) === norm(o.text))
+    if (i >= 0) {
+      // What comes next goes after this heading's own text, before the following heading.
+      const j = blocks.findIndex((b, k) => k > i && b.heading != null)
+      insertAt = j >= 0 ? blocks[j].pos : secPos + sec.nodeSize - 1
+      continue
+    }
+    const at: number = insertAt ?? secPos + 1
+    const nodes = [outlineNode(o), ...(o.level <= 3 ? [{ type: 'paragraph' }] : [])].map((j) => editor.schema.nodeFromJSON(j))
+    tr.insert(at, nodes)
+    insertAt = at + nodes.reduce((n, node) => n + node.nodeSize, 0)
+    added++
+  }
+  // Its own undo step, apart from what was typed just before.
+  if (added) editor.view.dispatch(closeHistory(tr))
+  return added
 }
 
 export function scrollToPos(editor: Editor, pos: number): void {
@@ -316,7 +401,7 @@ const ReferenceList = Node.create({
       dom.contentEditable = 'false'
       let sig = ''
       const paint = () => {
-        const entries = referenceEntries(analyze(editor.state.doc).citedIds)
+        const entries = referenceEntries(thesisReferenceIds(analyze(editor.state.doc)))
         const next = JSON.stringify(entries)
         if (next === sig) return
         sig = next
@@ -471,6 +556,188 @@ const Footnote = Node.create({
   }
 })
 
+// ---------- APA tables and figures ----------
+
+/** Commits an edit made inside a node view (caption, note, a cell) to the node's attributes. */
+function editable(el: HTMLElement, commit: (text: string) => void): void {
+  el.contentEditable = 'true'
+  el.spellcheck = true
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      el.blur()
+    }
+    e.stopPropagation()
+  })
+  el.addEventListener('blur', () => commit(el.textContent ?? ''))
+}
+
+function floatView(kind: 'table' | 'figure') {
+  return ({ node, getPos, editor }: { node: PMNode; getPos: (() => number | undefined) | boolean; editor: Editor }) => {
+    const dom = document.createElement('div')
+    dom.className = `apa-float apa-float-${kind}`
+    dom.contentEditable = 'false'
+    let current = node
+    const pos = () => (typeof getPos === 'function' ? getPos() : undefined)
+    const setAttrs = (patch: Record<string, unknown>) => {
+      const p = pos()
+      if (p == null) return
+      editor.view.dispatch(editor.state.tr.setNodeMarkup(p, undefined, { ...current.attrs, ...patch }))
+    }
+    const paint = () => {
+      const p = pos()
+      const info = analyze(editor.state.doc)
+      const n = (kind === 'table' ? info.tables : info.figures).find((x) => x.pos === p)?.n ?? 0
+      const a = current.attrs
+      dom.innerHTML = kind === 'table' ? tableHtml(n, a as unknown as ApaTable) : figureHtml(n, a as unknown as ApaFigure)
+      const title = dom.querySelector<HTMLElement>('.apa-title i')
+      if (title) editable(title, (t) => t !== a.title && setAttrs({ title: t }))
+      let note = dom.querySelector<HTMLElement>('.apa-note')
+      if (!note) {
+        note = document.createElement('p')
+        note.className = 'apa-note apa-note-empty'
+        note.innerHTML = '<i>Nota.</i> '
+        dom.querySelector(`.apa-${kind}`)?.append(note)
+      }
+      const noteText = document.createElement('span')
+      noteText.textContent = a.note || ''
+      noteText.dataset.placeholder = 'Agregá una nota (abreviaturas, fuente, significación)…'
+      note.replaceChildren(Object.assign(document.createElement('i'), { textContent: 'Nota.' }), ' ', noteText)
+      editable(noteText, (t) => t !== a.note && setAttrs({ note: t.trim() }))
+      if (kind === 'table') {
+        dom.querySelectorAll<HTMLElement>('th').forEach((th, j) =>
+          editable(th, (t) => {
+            if (t === a.headers[j]) return
+            setAttrs({ headers: (a.headers as string[]).map((h, k) => (k === j ? t : h)) })
+          })
+        )
+        dom.querySelectorAll<HTMLTableRowElement>('tbody tr').forEach((tr, i) =>
+          tr.querySelectorAll<HTMLElement>('td').forEach((td, j) =>
+            editable(td, (t) => {
+              if (t === (a.rows[i]?.[j] ?? '')) return
+              setAttrs({ rows: (a.rows as string[][]).map((r, k) => (k === i ? r.map((c, l) => (l === j ? t : c)) : r)) })
+            })
+          )
+        )
+      }
+      const del = document.createElement('button')
+      del.className = 'apa-delete'
+      del.type = 'button'
+      del.title = kind === 'table' ? 'Quitar la tabla' : 'Quitar la figura'
+      del.textContent = '×'
+      del.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        const p = pos()
+        if (p != null) editor.view.dispatch(editor.state.tr.delete(p, p + current.nodeSize))
+      })
+      dom.append(del)
+    }
+    queueMicrotask(paint)
+    let sig = ''
+    const repaintNumbers = () => {
+      const info = analyze(editor.state.doc)
+      const next = JSON.stringify((kind === 'table' ? info.tables : info.figures).map((x) => x.pos === pos()))
+      if (next !== sig) (sig = next), paint()
+    }
+    const off = onDocUpdate(editor, repaintNumbers)
+    return {
+      dom,
+      update: (n: PMNode) => {
+        if (n.type !== current.type) return false
+        if (n.attrs !== current.attrs) {
+          current = n
+          // Don't repaint under the caret while the student is typing in a field.
+          if (!dom.contains(document.activeElement)) paint()
+        }
+        return true
+      },
+      stopEvent: (e: Event) => dom.contains(e.target as globalThis.Node) && e.type !== 'dragstart',
+      ignoreMutation: () => true,
+      destroy: off
+    }
+  }
+}
+
+/** An attribute carried, with the node's others, in one data-json attribute (copy and paste keep it). */
+const json = (key: string, def: unknown) => ({
+  default: def,
+  parseHTML: (el: HTMLElement) => {
+    try {
+      return JSON.parse(el.getAttribute('data-json') ?? '{}')[key] ?? def
+    } catch {
+      return def
+    }
+  },
+  renderHTML: () => ({})
+})
+
+const ApaTableNode = Node.create({
+  name: 'apaTable',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return { title: json('title', ''), headers: json('headers', []), rows: json('rows', []), note: json('note', '') }
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-apa-table]' }]
+  },
+  renderHTML({ node }) {
+    return ['div', { 'data-apa-table': '', 'data-json': JSON.stringify(node.attrs) }]
+  },
+  renderText({ node }) {
+    return `Tabla: ${node.attrs.title}`
+  },
+  addNodeView() {
+    return floatView('table')
+  }
+})
+
+const ApaFigureNode = Node.create({
+  name: 'apaFigure',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return { title: json('title', ''), svg: json('svg', ''), note: json('note', '') }
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-apa-figure]' }]
+  },
+  renderHTML({ node }) {
+    return ['div', { 'data-apa-figure': '', 'data-json': JSON.stringify({ ...node.attrs, svg: cleanSvg(node.attrs.svg) }) }]
+  },
+  renderText({ node }) {
+    return `Figura: ${node.attrs.title}`
+  },
+  addNodeView() {
+    return floatView('figure')
+  }
+})
+
+// ---------- AI drafts ----------
+
+/**
+ * Text the assistant drafted and the student inserted: underlined until they
+ * review it, so it's never mistaken for their own writing (UCEMA pautas, Turnitin).
+ */
+const AiDraft = Mark.create({
+  name: 'aiDraft',
+  inclusive: false,
+  excludes: '',
+  addAttributes() {
+    return { logId: { default: '', parseHTML: (el) => el.getAttribute('data-ai-draft') ?? '', renderHTML: (a) => ({ 'data-ai-draft': a.logId }) } }
+  },
+  parseHTML() {
+    return [{ tag: 'span[data-ai-draft]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['span', mergeAttributes(HTMLAttributes, { class: 'ai-draft', title: 'Borrador de la IA: revisalo, reescribilo con tu voz y marcalo como revisado en Requisitos' }), 0]
+  }
+})
+
 // ---------- page breaks ----------
 
 const PageBreak = Node.create({
@@ -546,25 +813,53 @@ const ThesisCommands = Extension.create({
       insertPageBreak:
         () =>
         ({ commands }) =>
-          commands.insertContent([{ type: 'pageBreak' }, { type: 'paragraph' }])
+          commands.insertContent([{ type: 'pageBreak' }, { type: 'paragraph' }]),
+
+      insertApaTable:
+        (t) =>
+        ({ commands }) =>
+          commands.insertContent([{ type: 'apaTable', attrs: { ...t } }, { type: 'paragraph' }]),
+
+      insertApaFigure:
+        (f) =>
+        ({ commands }) =>
+          commands.insertContent([{ type: 'apaFigure', attrs: { ...f } }, { type: 'paragraph' }]),
+
+      insertDraft:
+        (paragraphs, logId) =>
+        ({ commands }) =>
+          commands.insertContent(
+            paragraphs
+              .map((p) => p.trim())
+              .filter(Boolean)
+              .map((p) => ({ type: 'paragraph', content: [{ type: 'text', text: p, marks: [{ type: 'aiDraft', attrs: { logId } }] }] }))
+          ),
+
+      clearDraft:
+        (logId) =>
+        ({ state, tr, dispatch }) => {
+          const type = state.schema.marks.aiDraft
+          const spans = analyze(state.doc).drafts.filter((d) => d.logId === logId)
+          if (!spans.length) return false
+          if (dispatch) for (const d of spans) tr.removeMark(d.from, d.to, type)
+          return true
+        }
     }
   }
 })
 
-// ---------- guidance placeholders ----------
+// ---------- guidance ----------
 
-function guidance(section: PMNode, index: number): string {
-  const node = section.child(index)
-  if (node.type.name === 'heading') return 'Título'
-  if (node.type.name !== 'paragraph') return ''
-  const kind = section.attrs.kind as SectionKind
-  const before = index > 0 ? section.child(index - 1) : null
-  if (before?.type.name === 'heading') return HEADING_GUIDANCE[normalizeHeading(before.textContent)] ?? DEFAULT_HEADING_GUIDANCE
-  if (kind === 'referencias') return index === 1 && section.childCount === 2 ? SECTION_GUIDANCE.referencias ?? '' : ''
-  return index === 0 ? SECTION_GUIDANCE[kind] ?? '' : ''
+/** The template's guidance for a heading: the specific one, else the general rule for headings. */
+function headingGuidance(text: string): string {
+  return HEADING_GUIDANCE[normalizeHeading(text)] ?? DEFAULT_HEADING_GUIDANCE
 }
 
-/** Template guidance in empty paragraphs, like the bracketed notes in the UCEMA .docx. */
+/**
+ * Template guidance, like the bracketed notes in the UCEMA .docx, as an ⓘ next
+ * to each heading (and on each sheet's label): always there, never in the way
+ * of the text. An empty heading still reads «Título».
+ */
 const Guidance = Extension.create({
   name: 'thesisGuidance',
   addProseMirrorPlugins() {
@@ -577,11 +872,15 @@ const Guidance = Extension.create({
             if (!editor.isEditable) return null
             const decos: Decoration[] = []
             state.doc.forEach((section, secPos) => {
-              section.forEach((child, off, i) => {
-                if (!child.isTextblock || child.content.size) return
-                const text = guidance(section, i)
+              section.forEach((child, off) => {
+                if (child.type.name !== 'heading') return
                 const pos = secPos + 1 + off
-                if (text) decos.push(Decoration.node(pos, pos + child.nodeSize, { class: 'is-empty', 'data-placeholder': text }))
+                if (!child.content.size) {
+                  decos.push(Decoration.node(pos, pos + child.nodeSize, { class: 'is-empty', 'data-placeholder': 'Título' }))
+                  return
+                }
+                const text = headingGuidance(child.textContent)
+                decos.push(Decoration.widget(pos + child.nodeSize - 1, () => guideTip(text), { side: 1, ignoreSelection: true, key: `guide:${text}` }))
               })
             })
             return DecorationSet.create(state.doc, decos)
@@ -612,13 +911,18 @@ export function buildThesisExtensions() {
     RunIn,
     Footnote,
     PageBreak,
+    ApaTableNode,
+    ApaFigureNode,
+    AiDraft,
     ThesisCommands,
     SourceQuote,
     Citation.configure(THESIS_CITE),
     Highlight.configure({ multicolor: false }),
     Typography,
     Guidance,
+    Pagination,
     StyleCheck,
+    CitationCheck,
     Autocomplete
   ]
 }

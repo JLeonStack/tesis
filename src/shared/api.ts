@@ -1,5 +1,6 @@
 import type {
   AiAccount,
+  AiEffort,
   AiEvent,
   AiProvider,
   CollectionName,
@@ -25,7 +26,7 @@ export interface ExtractOptions {
   /** Developer instructions for the one-shot thread (defaults to a strict extractor). */
   instructions?: string
   model?: string | null
-  effort?: 'low' | 'medium' | 'high'
+  effort?: AiEffort
 }
 
 /** Surface exposed to the renderer as `window.api`. */
@@ -63,7 +64,7 @@ export interface Api {
     /** One-shot structured extraction. Resolves with parsed JSON. */
     extract(prompt: string, schema: object, opts?: ExtractOptions): Promise<unknown>
     /** Fast structured request on a warm thread (writing helpers). Rejects with "CANCELLED" when superseded. */
-    assist(opts: { instructions: string; prompt: string; schema: object; model?: string | null; channel?: 'writing' | 'complete'; effort?: 'none' | 'low' }): Promise<unknown>
+    assist(opts: { instructions: string; prompt: string; schema: object; model?: string | null; channel?: 'writing' | 'complete' | 'evidence-terms' | 'evidence-check'; effort?: AiEffort | 'none' }): Promise<unknown>
     onEvent(cb: (e: AiEvent) => void): () => void
   }
   shell: {

@@ -8,10 +8,12 @@ import { SettingsDialog } from './components/SettingsDialog'
 import { ToastHost } from './components/ToastHost'
 import { AnimatePresence, motion } from 'motion/react'
 import { Resizer } from './components/Resizer'
-import { closeTab, createNote, isFullWidth, openBoard, openMatrix, openPalette, openThesis, toast, toggleSideNote, useStore } from './store'
+import { closeTab, createNote, isFullWidth, openBoard, openMatrix, openPalette, openTasks, openThesis, openWiki, openAgent, openResearch, openAnalysis, toast, toggleSideNote, useStore } from './store'
 import { exportThesisDocx, exportThesisPdf } from './thesis/exporting'
 import { importPapers, resumePending } from './lib/ingest'
 import { startHighlightTranslation } from './lib/highlightTranslate'
+import { restorePomodoro } from './pomodoro/timer'
+import { watchProgress } from './progress/model'
 import { exportActiveNote, exportBibliography } from './lib/exporting'
 import { clamp } from './lib/util'
 import { Upload } from 'lucide-react'
@@ -19,7 +21,7 @@ import { Upload } from 'lucide-react'
 export function App() {
   const sidebarOpen = useStore((s) => s.sidebarOpen)
   const rightOpen = useStore((s) => s.rightOpen)
-  // The whiteboard and the matrix have nothing for the side panel to show; they get the room instead.
+  // The assistant's own tab has nothing for the side panel to show; it gets the room instead.
   const fullWidth = useStore((s) => isFullWidth(s.active))
   const sidebarW = useStore((s) => s.sidebarW)
   const rightW = useStore((s) => s.rightW)
@@ -30,6 +32,8 @@ export function App() {
     return window.api.onMenu(handleMenu)
   }, [])
   useEffect(() => startHighlightTranslation(), [])
+  useEffect(() => restorePomodoro(), [])
+  useEffect(() => watchProgress(), [])
 
   // Window-level drag & drop (Postel's law: accept PDFs dropped anywhere).
   useEffect(() => {
@@ -54,7 +58,7 @@ export function App() {
       const files = [...(e.dataTransfer?.files ?? [])]
       const paths = files.filter((f) => /\.pdf$/i.test(f.name)).map((f) => window.api.papers.pathForFile(f))
       if (paths.length) void importPapers(paths)
-      else toast('Only PDF files can be imported')
+      else toast('Solo se pueden importar archivos PDF')
     }
     window.addEventListener('dragenter', enter)
     window.addEventListener('dragleave', leave)
@@ -123,8 +127,8 @@ export function App() {
               transition={{ type: 'spring', stiffness: 380, damping: 26 }}
             >
               <Upload className="size-7" strokeWidth={1.6} />
-              <strong className="text-[15px] text-foreground">Drop PDFs to add them to your library</strong>
-              <span className="text-muted-foreground">Metadata and citations are filled in automatically</span>
+              <strong className="text-[15px] text-foreground">Soltá los PDF para agregarlos a tu biblioteca</strong>
+              <span className="text-muted-foreground">Los metadatos y las citas se completan automáticamente</span>
             </motion.div>
           </motion.div>
         )}
@@ -161,6 +165,16 @@ function handleMenu(action: string): void {
       return openBoard()
     case 'open-matrix':
       return openMatrix()
+    case 'open-tasks':
+      return openTasks()
+    case 'open-wiki':
+      return openWiki()
+    case 'open-agent':
+      return openAgent()
+    case 'open-research':
+      return openResearch()
+    case 'open-analysis':
+      return openAnalysis()
     case 'export-thesis-docx':
       return void exportThesisDocx()
     case 'export-thesis-pdf':

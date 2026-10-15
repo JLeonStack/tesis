@@ -6,6 +6,11 @@ import { NoteEditor } from '../editor/NoteEditor'
 import { ThesisEditor } from '../thesis/ThesisEditor'
 import { Whiteboard } from '../board/Whiteboard'
 import { LiteratureMatrix } from '../matrix/LiteratureMatrix'
+import { TasksView } from '../tasks/TasksView'
+import { WikiView } from '../wiki/WikiView'
+import { AgentView } from '../agent/AgentView'
+import { ResearchView } from '../research/ResearchView'
+import { AnalysisView } from '../analysis/AnalysisView'
 import { Home } from './Home'
 import { Resizer } from './Resizer'
 import { clamp } from '../lib/util'
@@ -62,6 +67,16 @@ export function Workspace() {
                 <Whiteboard active={key === active} />
               ) : t.kind === 'matrix' ? (
                 <LiteratureMatrix />
+              ) : t.kind === 'tasks' ? (
+                <TasksView active={key === active} />
+              ) : t.kind === 'wiki' ? (
+                <WikiView />
+              ) : t.kind === 'agent' ? (
+                <AgentView />
+              ) : t.kind === 'research' ? (
+                <ResearchView />
+              ) : t.kind === 'analysis' ? (
+                <AnalysisView />
               ) : (
                 <NoteEditor noteId={t.id} />
               )}

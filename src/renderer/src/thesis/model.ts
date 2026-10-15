@@ -1,12 +1,13 @@
 import { getSchema } from '@tiptap/core'
 import type { Node as PMNode, Schema } from '@tiptap/pm/model'
 import type { Paper, Thesis, ThesisMeta } from '@shared/types'
-import { inText } from '../lib/citation'
+import { inTextGroup } from '../lib/citation'
 import { useStore } from '../store'
 import { analyze, countWords, runInOf } from './analyze'
-import { THESIS_CITE, italicRuns, referenceEntries } from './references'
+import { THESIS_CITE, italicRuns, referenceEntries, thesisReferenceIds } from './references'
 import { buildThesisExtensions, tocEntries } from './schema'
-import { KEYWORDS_LABEL, SECTION_INFO, type SectionKind } from './template'
+import { tableCaptionText, type ApaFigure, type ApaTable } from './tables'
+import { KEYWORDS_LABEL, SECTION_INFO, sectionTitle, type SectionKind } from './template'
 
 // A format-neutral view of the thesis. The live word counter, the
 // requirements checklist and both exporters (DOCX, PDF) read this, so they
@@ -25,8 +26,10 @@ export type Block =
   | { t: 'quote'; paras: Run[][] }
   | { t: 'list'; items: ListItem[] }
   | { t: 'pageBreak' }
-  | { t: 'toc'; entries: { level: number; text: string; anchor: string }[] }
+  | { t: 'toc'; title: string; entries: { level: number; text: string; anchor: string }[] }
   | { t: 'refs'; entries: Run[][] }
+  | { t: 'table'; n: number; table: ApaTable }
+  | { t: 'figure'; n: number; figure: ApaFigure }
 
 /** One paragraph of a list; `first` is false for extra paragraphs inside the same item. */
 export interface ListItem {
@@ -77,6 +80,7 @@ export const isKeywordsPara = (runs: Run[]) => runsText(runs).trim().startsWith(
 export function buildThesisModel(doc: PMNode, meta: ThesisMeta, papers: Record<string, Paper> = useStore.getState().papers): ThesisModel {
   const info = analyze(doc)
   const fnByPos = new Map(info.footnotes.map((f) => [f.pos, f]))
+  const floatN = new Map([...info.tables, ...info.figures].map((f) => [f.pos, f.n]))
   const anchors = new Map<number, string>()
   let headingN = 0
   const anchorFor = (pos: number) => {
@@ -106,8 +110,9 @@ export function buildThesisModel(doc: PMNode, meta: ThesisMeta, papers: Record<s
           break
         }
         case 'citation': {
-          const p = papers[child.attrs.paperId]
-          runs.push({ kind: 'text', text: p ? inText(p, THESIS_CITE.style, child.attrs.page ?? undefined, THESIS_CITE.locale) : '(fuente faltante)' })
+          const cites: { paperId: string; page?: number | null }[] = [{ paperId: child.attrs.paperId, page: child.attrs.page }, ...(child.attrs.extra ?? [])]
+          const items = cites.flatMap((c) => (papers[c.paperId] ? [{ paper: papers[c.paperId], page: c.page }] : []))
+          runs.push({ kind: 'text', text: items.length ? inTextGroup(items, THESIS_CITE.style, THESIS_CITE.locale) : '(fuente faltante)' })
           break
         }
         case 'footnote': {
@@ -199,11 +204,23 @@ export function buildThesisModel(doc: PMNode, meta: ThesisMeta, papers: Record<s
         case 'pageBreak':
           blocks.push({ t: 'pageBreak' })
           break
+        case 'apaTable': {
+          const table = node.attrs as unknown as ApaTable
+          words += countWords(tableCaptionText(table))
+          blocks.push({ t: 'table', n: floatN.get(pos) ?? 0, table })
+          break
+        }
+        case 'apaFigure': {
+          const figure = node.attrs as unknown as ApaFigure
+          words += countWords(tableCaptionText(figure))
+          blocks.push({ t: 'figure', n: floatN.get(pos) ?? 0, figure })
+          break
+        }
         case 'tocBlock':
-          blocks.push({ t: 'toc', entries: [] }) // filled once all anchors exist
+          blocks.push({ t: 'toc', title: sectionTitle('toc', sec.attrs.title) ?? '', entries: [] }) // filled once all anchors exist
           break
         case 'referenceList': {
-          const entries = referenceEntries(info.citedIds, papers).map((e) => italicRuns(e.text).map((r) => ({ kind: 'text' as const, ...r })))
+          const entries = referenceEntries(thesisReferenceIds(info, papers), papers).map((e) => italicRuns(e.text).map((r) => ({ kind: 'text' as const, ...r })))
           const n = entries.reduce((a, e) => a + countWords(runsText(e)), 0)
           words += n
           referenceWords += n
@@ -218,7 +235,7 @@ export function buildThesisModel(doc: PMNode, meta: ThesisMeta, papers: Record<s
     if (SECTION_INFO[kind].optional && !hasContent) return
     if (kind === 'referencias') mergeManualReferences(blocks)
     bySection[kind] = words
-    sections.push({ kind, anchor: `sec-${kind}`, title: SECTION_INFO[kind].title, blocks })
+    sections.push({ kind, anchor: `sec-${kind}`, title: sectionTitle(kind, sec.attrs.title), blocks })
   })
 
   // Table of contents, now that headings have anchors.
@@ -239,7 +256,7 @@ export function buildThesisModel(doc: PMNode, meta: ThesisMeta, papers: Record<s
     meta,
     sections,
     footnotes,
-    citedIds: info.citedIds,
+    citedIds: thesisReferenceIds(info, papers),
     words: { total, resumen: resumenWords, footnotes: footnoteWords, references: referenceWords, bySection }
   }
 }

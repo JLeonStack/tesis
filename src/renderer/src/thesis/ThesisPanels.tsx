@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { CircleAlert, CircleCheck, TriangleAlert } from 'lucide-react'
-import { useStore } from '../store'
+import { patchAiUse, toast, useStore } from '../store'
 import { cn } from '@/lib/utils'
 import { analyze } from './analyze'
 import { useLiveThesis, thesisEditor } from './bridge'
@@ -58,7 +58,8 @@ export function OutlinePanel({ thesisId }: { thesisId: string }) {
 export function ChecksPanel({ thesisId }: { thesisId: string }) {
   const live = useLiveThesis(thesisId)
   const papers = useStore((s) => s.papers)
-  const checks = useMemo(() => (live ? thesisChecks(live.doc, live.thesis.meta, papers) : []), [live, papers])
+  const research = useStore((s) => s.settings.research)
+  const checks = useMemo(() => (live ? thesisChecks(live.doc, live.thesis.meta, papers, research) : []), [live, papers, research])
   const failing = checks.filter((c) => !c.ok)
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
@@ -91,9 +92,42 @@ export function ChecksPanel({ thesisId }: { thesisId: string }) {
           )
         })}
       </ul>
+      <DraftsList thesisId={thesisId} />
       <p className="mt-4 px-2 text-[11.5px] leading-relaxed text-faint">
         Formato fijo en el editor y en la exportación: Calibri 11, interlineado doble, sangría de 1,27 cm, márgenes de 2,54 cm, tamaño carta, número de página arriba a la derecha y referencias en APA 7.
       </p>
+    </div>
+  )
+}
+
+/** The AI drafts still marked in the text: jump to each, and mark it reviewed once rewritten. */
+function DraftsList({ thesisId }: { thesisId: string }) {
+  const live = useLiveThesis(thesisId)
+  const drafts = live ? analyze(live.doc).drafts : []
+  const byLog = [...new Map(drafts.map((d) => [d.logId, d])).values()]
+  if (!byLog.length) return null
+  return (
+    <div className="mt-3 rounded-lg border border-dashed border-bloom-amber/60 px-2 py-2">
+      <div className="px-1 pb-1 text-[11px] font-semibold tracking-wider text-bloom-amber uppercase">Borradores de IA</div>
+      {byLog.map((d) => (
+        <div key={d.logId} className="flex items-center gap-2 rounded-md px-1 py-1 text-[12.5px]">
+          <button className="min-w-0 flex-1 truncate text-left hover:underline" onClick={() => jump(thesisId, d.from)} title={d.text}>
+            «{d.text.slice(0, 80)}»
+          </button>
+          <button
+            className="flex-none rounded-md border px-1.5 py-0.5 text-[11.5px] font-medium hover:bg-accent"
+            title="Ya lo reescribí con mis palabras y verifiqué lo que dice"
+            onClick={() => {
+              const ed = thesisEditor(thesisId)
+              if (!ed?.commands.clearDraft(d.logId)) return
+              patchAiUse(d.logId, { reviewedAt: Date.now() })
+              toast('Borrador marcado como revisado')
+            }}
+          >
+            Revisado
+          </button>
+        </div>
+      ))}
     </div>
   )
 }

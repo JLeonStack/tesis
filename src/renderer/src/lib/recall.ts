@@ -1,5 +1,6 @@
 import type { JSONContent } from '@tiptap/core'
-import type { PaperRecall, RecallAnswer, RecallAttempt, RecallVerdict } from '@shared/types'
+import type { PaperRecall, RecallAnswer, RecallAttempt, RecallVerdict, Settings } from '@shared/types'
+import { researchBrief } from '../research/framework'
 import { aiModel, saveRecall, useStore } from '../store'
 import { insertIntoNote, paperNote } from '../editor/noteBridge'
 import { paperBody } from './guide'
@@ -76,12 +77,16 @@ const INSTRUCTIONS = `Sos un tutor de lectura académica para un estudiante de M
 - summary: una oración en español con el balance y qué releer primero.
 Devolvé una entrada en "answers" por pregunta, en el mismo orden.`
 
+/** The grader's instructions, with the course framework: feedback can point at what matters for the student's pair. */
+export const recallInstructions = (s: Pick<Settings, 'research' | 'researchQuestion'>) =>
+  `${INSTRUCTIONS}\n- Si viene al caso, señalá en una frase cómo se conecta la respuesta con los temas de su tesis (abajo); nunca a costa de corregir lo que dice el paper.\n\n${researchBrief(s)}`
+
 /** Grades the answers against the paper's text. */
 export async function gradeRecall(paperId: string, qa: { question: string; answer: string }[]): Promise<{ answers: RecallAnswer[]; summary: string }> {
   const { body } = await paperBody(paperId)
   const list = qa.map((x, i) => `${i + 1}. Pregunta: ${x.question}\nRespuesta del estudiante: ${x.answer.trim() || '(sin respuesta)'}`).join('\n\n')
   const r = (await window.api.ai.extract(`<paper>${body}</paper>\n\nRespuestas de memoria:\n\n${list}`, SCHEMA, {
-    instructions: INSTRUCTIONS,
+    instructions: recallInstructions(useStore.getState().settings),
     model: aiModel().id,
     effort: 'medium'
   })) as { answers: { verdict: RecallVerdict; feedback: string; pages: number[] }[]; summary: string }

@@ -13,14 +13,14 @@ export function debounce<A extends unknown[]>(fn: (...a: A) => void, ms: number)
 
 export function timeAgo(ts: number): string {
   const s = Math.round((Date.now() - ts) / 1000)
-  if (s < 45) return 'just now'
+  if (s < 45) return 'recién'
   const m = Math.round(s / 60)
-  if (m < 60) return `${m}m ago`
+  if (m < 60) return `hace ${m} min`
   const h = Math.round(m / 60)
-  if (h < 24) return `${h}h ago`
+  if (h < 24) return `hace ${h} h`
   const d = Math.round(h / 24)
-  if (d < 7) return `${d}d ago`
-  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  if (d < 7) return `hace ${d} d`
+  return new Date(ts).toLocaleDateString('es-AR', { month: 'short', day: 'numeric' })
 }
 
 export const isMac = navigator.platform.toLowerCase().includes('mac')

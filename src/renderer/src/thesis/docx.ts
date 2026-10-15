@@ -10,6 +10,11 @@ import {
   Packer,
   PageNumber,
   Paragraph,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
   TableOfContents,
   TabStopType,
   LeaderType,
@@ -20,6 +25,7 @@ import {
 import logoUrl from '../assets/ucema-logo.png'
 import type { Block, Indent, ModelSection, Run, ThesisModel } from './model'
 import { italicRuns } from './references'
+import { apaRuns, numericColumns, svgToPng, type ApaTable } from './tables'
 import { AUTHORIZATIONS, CAREER, UNIVERSITY, authRuns, coverBlanks, longDate, tutorLine } from './template'
 
 // Word output that follows the UCEMA template: Letter, 2.54 cm margins,
@@ -49,7 +55,42 @@ function textRuns(runs: Run[], size?: number): ParagraphChild[] {
 const indentFor = (indent: Indent): IParagraphOptions['indent'] =>
   indent === 'first' ? { firstLine: INDENT } : indent === 'hanging' ? { left: INDENT, hanging: INDENT } : undefined
 
-type Item = IParagraphOptions | TableOfContents
+type Item = IParagraphOptions | TableOfContents | Table
+
+const SINGLE = { line: 240, before: 0, after: 0 }
+const RULE = { style: BorderStyle.SINGLE, size: 6, color: BLACK }
+const NONE = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+const capRuns = (s: string, italic = false) => apaRuns(s).map((r) => new TextRun({ text: r.text, italics: italic || r.italic }))
+
+/** APA table: number and title above, rules only above and below the header and at the bottom, single-spaced cells. */
+function apaTable(n: number, t: ApaTable): Item[] {
+  const num = numericColumns(t)
+  const cols = Math.max(1, t.headers.length)
+  const row = (cells: string[], header: boolean, last: boolean) =>
+    new TableRow({
+      tableHeader: header,
+      children: Array.from({ length: cols }, (_, j) =>
+        new TableCell({
+          borders: { top: header ? RULE : NONE, bottom: header || last ? RULE : NONE, left: NONE, right: NONE },
+          margins: { left: 80, right: 80, top: 40, bottom: 40 },
+          children: [new Paragraph({ spacing: SINGLE, alignment: header ? AlignmentType.CENTER : num[j] ? AlignmentType.RIGHT : AlignmentType.LEFT, children: capRuns(cells[j] ?? '') })]
+        })
+      )
+    })
+  return [
+    { keepNext: true, children: [new TextRun({ text: `Tabla ${n}`, bold: true })] },
+    { keepNext: true, children: capRuns(t.title, true) },
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: { top: NONE, bottom: NONE, left: NONE, right: NONE, insideHorizontal: NONE, insideVertical: NONE },
+      rows: [row(t.headers, true, !t.rows.length), ...t.rows.map((r, i) => row(r, false, i === t.rows.length - 1))]
+    }),
+    ...(t.note.trim() ? [{ children: [new TextRun({ text: 'Nota.', italics: true }), new TextRun(' '), ...capRuns(t.note)] }] : [])
+  ]
+}
+
+/** Figures need a PNG in Word: rasterized before the document is built. */
+const figurePngs = new Map<string, { data: ArrayBuffer; width: number; height: number }>()
 
 function blockItems(b: Block, nextList: () => number): Item[] {
   switch (b.t) {
@@ -72,8 +113,8 @@ function blockItems(b: Block, nextList: () => number): Item[] {
       return [{ pageBreakBefore: true, children: [] }]
     case 'toc':
       return [
-        { style: 'TitleNoToc', children: [new TextRun('Tabla de Contenido')] },
-        new TableOfContents('Tabla de Contenido', {
+        { style: 'TitleNoToc', children: [new TextRun(b.title)] },
+        new TableOfContents(b.title, {
           hyperlink: true,
           headingStyleRange: '1-3',
           cachedEntries: b.entries.map((e) => ({ title: e.text, level: e.level }))
@@ -81,6 +122,21 @@ function blockItems(b: Block, nextList: () => number): Item[] {
       ]
     case 'refs':
       return b.entries.map((runs) => ({ indent: { left: INDENT, hanging: INDENT }, children: textRuns(runs) }))
+    case 'table':
+      return apaTable(b.n, b.table)
+    case 'figure': {
+      const png = figurePngs.get(b.figure.svg)
+      // 6.5 in of text width at 96 px/in.
+      const w = png ? Math.min(624, png.width) : 0
+      return [
+        { keepNext: true, children: [new TextRun({ text: `Figura ${b.n}`, bold: true })] },
+        { keepNext: true, children: capRuns(b.figure.title, true) },
+        ...(png
+          ? [{ keepNext: true, spacing: SINGLE, children: [new ImageRun({ type: 'png' as const, data: png.data, transformation: { width: w, height: Math.round((w * png.height) / png.width) }, altText: { name: `Figura ${b.n}`, description: b.figure.title, title: b.figure.title } })] }]
+          : []),
+        ...(b.figure.note.trim() ? [{ children: [new TextRun({ text: 'Nota.', italics: true }), new TextRun(' '), ...capRuns(b.figure.note)] }] : [])
+      ]
+    }
   }
 }
 
@@ -90,12 +146,12 @@ function sectionItems(s: ModelSection, nextList: () => number): Item[] {
   // The TOC block writes its own title, which must not list itself.
   if (s.title && s.kind !== 'toc') out.push({ heading: HeadingLevel.HEADING_1, children: [new TextRun(s.title)] })
   for (const b of s.blocks) out.push(...blockItems(b, nextList))
-  if (!(out[0] && !(out[0] instanceof TableOfContents))) out.unshift({ children: [] })
+  if (!(out[0] && !(out[0] instanceof TableOfContents) && !(out[0] instanceof Table))) out.unshift({ children: [] })
   out[0] = { ...(out[0] as IParagraphOptions), pageBreakBefore: true }
   return out
 }
 
-const toChild = (i: Item) => (i instanceof TableOfContents ? i : new Paragraph(i))
+const toChild = (i: Item) => (i instanceof TableOfContents || i instanceof Table ? i : new Paragraph(i))
 
 async function logoBytes(): Promise<ArrayBuffer> {
   return (await fetch(logoUrl)).arrayBuffer()
@@ -175,7 +231,9 @@ const numberingLevels = (format: (typeof LevelFormat)[keyof typeof LevelFormat],
 export async function buildDocx(m: ThesisModel): Promise<Uint8Array> {
   let instance = 0
   const nextList = () => ++instance
-  const children: (Paragraph | TableOfContents)[] = [...(await coverParagraphs(m))]
+  figurePngs.clear()
+  for (const s of m.sections) for (const b of s.blocks) if (b.t === 'figure' && b.figure.svg && !figurePngs.has(b.figure.svg)) figurePngs.set(b.figure.svg, await svgToPng(b.figure.svg))
+  const children: (Paragraph | TableOfContents | Table)[] = [...(await coverParagraphs(m))]
   for (const s of m.sections) children.push(...sectionItems(s, nextList).map(toChild))
   children.push(...authorizationParagraphs(m, nextList()))
 

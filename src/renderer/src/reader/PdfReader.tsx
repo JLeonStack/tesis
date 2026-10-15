@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Hint, IconButton } from '../components/common'
 import type { Annotation, HighlightColor, Rect, SkimSentence } from '@shared/types'
+import { hasPrintedPages, printedPage } from '../lib/pages'
 import { acquirePdf, releasePdf, type PDFDocumentProxy } from '../lib/pdf'
 import { askAssistant, jumpToSentence, openTab, patchPaper, saveAnnotation, toast, useStore } from '../store'
 import { PdfPage } from './PdfPage'
@@ -20,6 +21,7 @@ import { MarkCard } from './MarkCard'
 import { usePageMarks } from './usePageMarks'
 import type { PageMark } from '../lib/marks'
 import { buildGuide } from '../lib/guide'
+import { locateAll } from '../lib/locate'
 import { clamp, mod, uid } from '../lib/util'
 import { addQuoteToNote } from '../editor/noteBridge'
 import { explainPrompt } from '../lib/prompts'
@@ -227,7 +229,23 @@ export function PdfReader({ paperId, active }: { paperId: string; active: boolea
     scrollToPage(jump.page, target ? target.rects[0]?.y ?? 0 : 0, false)
     if (sentence) setSkimPos(indexOrNull(skimList, sentence.id))
     if (target) flash(target.id)
+    // A quote backing the thesis: find it in the page's text and mark it for a few seconds.
+    if (jump.quote && !target) {
+      const nonce = jump.nonce
+      void locateAll(doc, [{ page: jump.page, text: jump.quote }]).then(([found]) => {
+        if (!found || handledJump.current !== nonce) return
+        const id = `quote:${nonce}`
+        setQuoteMark({ id, facet: 'finding', page: found.page, text: jump.quote!, rects: found.rects })
+        scrollToPage(found.page, found.rects[0]?.y ?? 0, false)
+        flash(id)
+        clearTimeout(quoteTimer.current)
+        quoteTimer.current = setTimeout(() => setQuoteMark(null), 8000)
+      })
+    }
   }, [jump, doc, sizes.length, scrollToPage])
+  const [quoteMark, setQuoteMark] = useState<SkimSentence | null>(null)
+  const quoteTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(quoteTimer.current), [])
 
   // ---------- zoom ----------
   const setZoomKeep = useCallback(
@@ -320,8 +338,9 @@ export function PdfReader({ paperId, active }: { paperId: string; active: boolea
     // A sentence opened from the guide panel shows (and flashes) even when skim mode is off.
     const flashing = !skimList.some((s) => s.id === flashId) && guide?.sentences.find((s) => s.id === flashId && s.rects.length)
     if (flashing) add(flashing)
+    if (quoteMark) add(quoteMark)
     return m
-  }, [skimList, guide, flashId])
+  }, [skimList, guide, flashId, quoteMark])
 
   // ---------- reading marks: key terms and library citations ----------
   const marksByPage = usePageMarks(doc, paperId, visible)
@@ -541,28 +560,34 @@ export function PdfReader({ paperId, active }: { paperId: string; active: boolea
           {paper.title}
         </div>
         <div className="flex items-center gap-0.5">
-          <PageInput page={page} total={total} onGo={(n) => scrollToPage(n)} />
+          <PageInput page={page} total={total} printed={hasPrintedPages(paper) ? printedPage(paper, page) : undefined} onGo={(n) => scrollToPage(n)} />
           <Separator orientation="vertical" className="mx-1.5 !h-4" />
-          <IconButton label="Zoom out" keys={[mod, '−']} onClick={() => zoomBy(-1)}>
+          <IconButton label="Alejar" keys={[mod, '−']} onClick={() => zoomBy(-1)}>
             <Minus />
           </IconButton>
-          <Hint label="Fit width" keys={[mod, '0']}>
+          <Hint label="Ajustar al ancho" keys={[mod, '0']}>
             <button
               onClick={() => setZoomKeep('fit')}
               className="h-7 min-w-11 rounded-md px-1.5 text-xs font-medium text-muted-foreground tabular-nums hover:bg-accent hover:text-foreground"
             >
-              {zoom === 'fit' ? 'Fit' : `${Math.round(scale * 100)}%`}
+              {zoom === 'fit' ? 'Ancho' : `${Math.round(scale * 100)}%`}
             </button>
           </Hint>
-          <IconButton label="Zoom in" keys={[mod, '+']} onClick={() => zoomBy(1)}>
+          <IconButton label="Acercar" keys={[mod, '+']} onClick={() => zoomBy(1)}>
             <Plus />
           </IconButton>
           <Separator orientation="vertical" className="mx-1.5 !h-4" />
-          <IconButton label="Find in paper" keys={[mod, 'F']} active={findOpen} onClick={() => setFindOpen((v) => !v)}>
+          <IconButton label="Buscar en el paper" keys={[mod, 'F']} active={findOpen} onClick={() => setFindOpen((v) => !v)}>
             <Search />
           </IconButton>
           <IconButton
-            label={guiding ? 'Building the reading guide…' : guide ? 'Skim mode: key sentences marked by type' : 'Skim mode: builds a reading guide first'}
+            label={
+              guiding
+                ? 'Armando la guía de lectura…'
+                : guide
+                  ? 'Lectura rápida: oraciones clave marcadas por tipo'
+                  : 'Lectura rápida: primero arma una guía de lectura'
+            }
             keys={[mod, '⌥', 'S']}
             active={skimVisible}
             onClick={toggleSkim}
@@ -570,14 +595,14 @@ export function PdfReader({ paperId, active }: { paperId: string; active: boolea
             {guiding ? <Loader2 className="animate-spin" /> : <ScanText />}
           </IconButton>
           <IconButton
-            label={marksOn ? 'Hide term definitions and library citations' : 'Show term definitions and library citations'}
+            label={marksOn ? 'Ocultar definiciones de términos y citas de la biblioteca' : 'Mostrar definiciones de términos y citas de la biblioteca'}
             active={marksOn}
             onClick={() => useStore.setState({ marks: !marksOn })}
           >
             <BookMarked />
           </IconButton>
           <IconButton
-            label="Night reading"
+            label="Lectura nocturna"
             active={night}
             onClick={() =>
               setNight((v) => {
@@ -588,14 +613,14 @@ export function PdfReader({ paperId, active }: { paperId: string; active: boolea
           >
             <MoonStar />
           </IconButton>
-          <Hint label="Ask the assistant" keys={[mod, 'J']}>
+          <Hint label="Preguntar al asistente" keys={[mod, 'J']}>
             <Button
               variant="ghost"
               size="sm"
               className="ml-1 h-7 gap-1.5 px-2.5 text-brand-text hover:bg-brand-soft hover:text-brand-text"
               onClick={() => useStore.setState({ rightOpen: true, rightTab: 'assistant' })}
             >
-              <Sparkles className="size-3.5" /> Ask
+              <Sparkles className="size-3.5" /> Preguntar
             </Button>
           </Hint>
         </div>
@@ -632,7 +657,7 @@ export function PdfReader({ paperId, active }: { paperId: string; active: boolea
       >
         {error ? (
           <div className="grid h-full place-content-center gap-1.5 text-center text-muted-foreground">
-            <strong className="text-foreground">This PDF could not be opened.</strong>
+            <strong className="text-foreground">No se pudo abrir este PDF.</strong>
             <span>{error}</span>
           </div>
         ) : !doc ? (
@@ -679,7 +704,7 @@ export function PdfReader({ paperId, active }: { paperId: string; active: boolea
               if (/^spanish/i.test(useStore.getState().settings.translateTo)) createHighlight('yellow', undefined, translation, t)
               else createHighlight('yellow', t, translation)
               setTranslation(null)
-              toast('Translation saved on the highlight')
+              toast('Traducción guardada en el resaltado')
             }}
             onToNote={(t) => {
               const a = createHighlight('blue', undefined, translation)
@@ -713,7 +738,7 @@ export function PdfReader({ paperId, active }: { paperId: string; active: boolea
             onClick={() => setZoomKeep('fit')}
             className="absolute bottom-4 left-1/2 flex h-7 items-center gap-1.5 rounded-full border bg-popover px-3 text-xs font-medium shadow-md"
           >
-            <ArrowLeftRight className="size-3.5" /> Fit width
+            <ArrowLeftRight className="size-3.5" /> Ajustar al ancho
           </motion.button>
         )}
       </AnimatePresence>
@@ -766,7 +791,7 @@ function clientBox(page: DOMRect, rects: Rect[]): DOMRect {
   return new DOMRect(page.left + x0 * page.width, page.top + y0 * page.height, (x1 - x0) * page.width, (y1 - y0) * page.height)
 }
 
-function PageInput({ page, total, onGo }: { page: number; total: number; onGo: (n: number) => void }) {
+function PageInput({ page, total, printed, onGo }: { page: number; total: number; printed?: number; onGo: (n: number) => void }) {
   const [draft, setDraft] = useState<string | null>(null)
   return (
     <span className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
@@ -785,10 +810,15 @@ function PageInput({ page, total, onGo }: { page: number; total: number; onGo: (
             ;(e.target as HTMLInputElement).blur()
           } else if (e.key === 'Escape') (e.target as HTMLInputElement).blur()
         }}
-        aria-label="Page number"
+        aria-label="Número de página"
         className="h-6 w-10 rounded-md border bg-card text-center text-xs text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
       />
       <span>/ {total || '–'}</span>
+      {printed != null && printed !== page && (
+        <span className="text-faint" title="Página impresa del artículo: la que va en las citas">
+          · p. {printed}
+        </span>
+      )}
     </span>
   )
 }

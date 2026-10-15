@@ -70,6 +70,30 @@
   text-align: center;
   user-select: none;
 }
+.sheet-title-input {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: center;
+  outline: none;
+  cursor: text;
+}
+.sheet-title-input:hover {
+  background: color-mix(in oklch, var(--brand) 6%, transparent);
+}
+.sheet-title-input:focus {
+  background: color-mix(in oklch, var(--brand) 10%, transparent);
+}
+.sheet-title-input::placeholder {
+  color: var(--faint);
+}
 .thesis-sheet .faint {
   color: var(--faint);
 }
@@ -179,6 +203,38 @@
   border-color: var(--brand);
 }
 
+/* ---------- pages (see thesis/pagination.ts) ---------- */
+/* Where a page ends: blank paper to the bottom margin, then a seam that draws
+ * the bottom margin, the desk between sheets and the next page's top margin. */
+.page-gap {
+  display: block;
+  position: relative;
+  text-indent: 0;
+  line-height: 0;
+  user-select: none;
+  pointer-events: none;
+}
+.page-seam {
+  display: block;
+  position: absolute;
+  left: -2.54cm;
+  right: -2.54cm;
+  bottom: 0;
+  height: calc(2 * 2.54cm + 28px);
+}
+.page-desk {
+  display: block;
+  position: absolute;
+  left: -20px;
+  right: -20px;
+  top: 2.54cm;
+  height: 28px;
+  background: var(--canvas);
+  box-shadow:
+    inset 0 7px 6px -7px rgb(41 37 30 / 0.16),
+    inset 0 -7px 6px -7px rgb(41 37 30 / 0.16);
+}
+
 /* ---------- guidance placeholders ---------- */
 /* Small enough that two lines fit inside one double-spaced line. */
 .thesis-prose .is-empty::before {
@@ -204,6 +260,68 @@
 }
 .thesis-prose h1.is-empty::before {
   text-align: center;
+}
+
+/* The template's guidance: an ⓘ after each heading and on each sheet's label. Zero width, so it never moves the text. */
+.guide-anchor {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 1em;
+  vertical-align: baseline;
+  user-select: none;
+}
+.guide-dot {
+  position: absolute;
+  left: 0.4em;
+  top: 50%;
+  transform: translateY(-40%);
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--faint);
+  opacity: 0.55;
+  cursor: help;
+  pointer-events: auto;
+  transition: opacity 120ms, color 120ms;
+}
+.guide-dot svg {
+  width: 13px;
+  height: 13px;
+}
+.thesis-prose :is(h1, h2, h3):hover .guide-dot,
+.guide-dot:hover {
+  opacity: 1;
+  color: var(--brand-text);
+}
+.sheet-label .guide-anchor {
+  height: 10px;
+}
+.sheet-label .guide-dot {
+  left: 0.35em;
+  transform: translateY(-55%);
+}
+.guide-tip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 340px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.14);
+  font: 400 12.5px/1.45 var(--font-sans);
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+  pointer-events: none;
+}
+@media print {
+  .guide-anchor {
+    display: none;
+  }
 }
 
 /* ---------- footnotes ---------- */
@@ -466,6 +584,33 @@ textarea.cover-field {
   }
 }
 
+/* Citation check (uncited.ts): claims without a citation, and the sentence being backed in Respaldo. */
+.thesis-sheet .uncited {
+  cursor: pointer;
+  text-decoration: underline dashed color-mix(in oklab, var(--color-bloom-pink) 70%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 5px;
+  text-decoration-skip-ink: none;
+  border-radius: 2px;
+  transition: background-color 0.12s;
+}
+.thesis-sheet .uncited:hover {
+  background: color-mix(in oklab, var(--color-bloom-pink) 9%, transparent);
+}
+.thesis-sheet .support-target {
+  background: color-mix(in oklab, var(--color-success) 13%, transparent);
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--color-success) 55%, transparent);
+  border-radius: 2px;
+}
+@media print {
+  .thesis-sheet .uncited,
+  .thesis-sheet .support-target {
+    text-decoration: none;
+    background: none;
+    box-shadow: none;
+  }
+}
+
 /* Autocomplete (autocomplete.ts): suggested continuation after the caret. */
 .thesis-ghost {
   color: color-mix(in oklab, currentColor 38%, transparent);
@@ -504,4 +649,88 @@ textarea.cover-field {
     opacity: 1;
     transform: scale(1.1);
   }
+}
+
+/* APA tables and figures: number in bold, title in italics, horizontal rules only. */
+.apa-float {
+  position: relative;
+  margin: 0;
+  text-indent: 0;
+}
+.apa-float p {
+  margin: 0;
+  text-indent: 0;
+}
+.apa-float [contenteditable='true'] {
+  outline: none;
+  border-radius: 2px;
+}
+.apa-float [contenteditable='true']:hover,
+.apa-float [contenteditable='true']:focus {
+  background: color-mix(in oklab, var(--brand, #3b82f6) 8%, transparent);
+}
+.apa-float table {
+  width: 100%;
+  border-collapse: collapse;
+  line-height: 1.25;
+  margin: 4pt 0;
+  border-bottom: 0.75pt solid var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.apa-float th {
+  font-weight: 400;
+  text-align: center;
+  border-top: 0.75pt solid var(--ink);
+  border-bottom: 0.75pt solid var(--ink);
+  padding: 2pt 4pt;
+}
+.apa-float td {
+  padding: 2pt 4pt;
+  text-align: left;
+}
+.apa-float td.num {
+  text-align: right;
+}
+.apa-float .apa-svg svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 4pt 0;
+}
+.dark .apa-float .apa-svg svg {
+  filter: invert(0.88);
+}
+.apa-float .apa-note span:empty::before {
+  content: attr(data-placeholder);
+  color: var(--faint, #999);
+}
+.apa-float .apa-delete {
+  position: absolute;
+  top: 0;
+  right: -1.6em;
+  width: 1.3em;
+  height: 1.3em;
+  line-height: 1;
+  border-radius: 4px;
+  color: var(--faint, #999);
+  opacity: 0;
+}
+.apa-float:hover .apa-delete {
+  opacity: 1;
+}
+.apa-float .apa-delete:hover {
+  color: var(--destructive, #dc2626);
+  background: var(--accent, #eee);
+}
+.apa-float.ProseMirror-selectednode {
+  outline: 2px solid color-mix(in oklab, var(--brand, #3b82f6) 45%, transparent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* Text the assistant drafted: visible until the student reviews it. */
+.ai-draft {
+  background: color-mix(in oklab, #f59e0b 12%, transparent);
+  text-decoration: underline dashed color-mix(in oklab, #f59e0b 70%, transparent);
+  text-underline-offset: 3px;
 }

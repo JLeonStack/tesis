@@ -27,8 +27,8 @@ const FACET_BAR: Record<SkimSentence['facet'], string> = {
 }
 const ADVICE_DOT: Record<SectionAdvice, string> = { read: 'bg-status-read', skim: 'bg-status-reading', skip: 'bg-faint/60' }
 const LEVEL = {
-  high: { dot: 'bg-status-read', label: 'Highly relevant' },
-  medium: { dot: 'bg-status-reading', label: 'Partly relevant' },
+  high: { dot: 'bg-status-read', label: 'Muy relevante' },
+  medium: { dot: 'bg-status-reading', label: 'Relevancia parcial' },
   low: { dot: 'bg-faint/60', label: 'Marginal' }
 } as const
 
@@ -63,26 +63,26 @@ function Intro({ paperId }: { paperId: string }) {
     <EmptyState
       bloom
       icon={<Compass />}
-      title="Know where to look before you read"
-      description="Get the gist in three lines, see which sections matter for your thesis, and have the key sentences marked on the page."
+      title="Sabé dónde mirar antes de leer"
+      description="Conocé la idea central en tres líneas, mirá qué secciones importan para tu tesis y tené marcadas en la página las oraciones clave."
     >
       {connected ? (
         <MotionButton disabled={textStatus !== 'ready'} onClick={() => void buildGuide(paperId)}>
-          <Sparkles className="size-4" /> Build reading guide
+          <Sparkles className="size-4" /> Armar guía de lectura
         </MotionButton>
       ) : (
         <Button variant="outline" size="sm" onClick={() => useStore.setState({ settingsOpen: true })}>
-          Connect {provider} to start
+          Conectar {provider} para empezar
         </Button>
       )}
       <span className="text-[11.5px] text-faint">
         {textStatus === 'pending'
-          ? 'Waiting for the text to be extracted…'
+          ? 'Esperando a que se extraiga el texto…'
           : textStatus === 'error'
-            ? 'The text of this PDF could not be read.'
+            ? 'No se pudo leer el texto de este PDF.'
             : words
-              ? `Full read: about ${readingMinutes(words)} min`
-              : 'Takes about a minute. Keep reading meanwhile.'}
+              ? `Lectura completa: unos ${readingMinutes(words)} min`
+              : 'Tarda cerca de un minuto. Podés seguir leyendo mientras tanto.'}
       </span>
       {textStatus === 'ready' && (
         <Button variant="link" size="xs" className="mt-1 text-muted-foreground" onClick={() => openRecall(paperId)}>
@@ -99,10 +99,10 @@ function Building({ since }: { since: number }) {
   return (
     <div className="flex flex-col gap-3 px-4 pt-5">
       <span className="flex items-center gap-2 text-[13px]">
-        <ThinkingShimmer>Mapping the paper…</ThinkingShimmer>
+        <ThinkingShimmer>Mapeando el paper…</ThinkingShimmer>
         {secs >= 3 && <span className="text-[11.5px] text-faint tabular-nums">{secs}s</span>}
       </span>
-      <p className="text-[12.5px] text-muted-foreground">Usually under a minute. You can keep reading; the guide appears here when it’s ready.</p>
+      <p className="text-[12.5px] text-muted-foreground">Suele tardar menos de un minuto. Podés seguir leyendo; la guía aparece acá cuando esté lista.</p>
       <div className="mt-2 flex flex-col gap-2">
         <Skeleton className="h-3.5 w-full" />
         <Skeleton className="h-3.5 w-[94%]" />
@@ -141,10 +141,10 @@ function Guide({ guide, paperId, rebuilding }: { guide: PaperGuide; paperId: str
       <div className="rounded-xl border bg-background p-3">
         <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <Clock className="size-3.5" /> Full read <strong className="font-semibold text-foreground tabular-nums">~{readingMinutes(guide.words)} min</strong>
+            <Clock className="size-3.5" /> Lectura completa <strong className="font-semibold text-foreground tabular-nums">~{readingMinutes(guide.words)} min</strong>
           </span>
           <span className="flex items-center gap-1.5">
-            <ScanText className="size-3.5" /> Skim <strong className="font-semibold text-foreground tabular-nums">~{skimMinutes(guide)} min</strong>
+            <ScanText className="size-3.5" /> Lectura rápida <strong className="font-semibold text-foreground tabular-nums">~{skimMinutes(guide)} min</strong>
           </span>
         </div>
         <Button
@@ -154,7 +154,7 @@ function Guide({ guide, paperId, rebuilding }: { guide: PaperGuide; paperId: str
           disabled={!marked}
           onClick={() => useStore.setState({ skim: !skim })}
         >
-          <ScanText /> {skim ? 'Hide key sentences on the page' : `Mark ${marked} key sentences on the page`}
+          <ScanText /> {skim ? 'Ocultar oraciones clave en la página' : `Marcar ${marked} oraciones clave en la página`}
         </Button>
       </div>
 
@@ -195,7 +195,7 @@ function Guide({ guide, paperId, rebuilding }: { guide: PaperGuide; paperId: str
         </Collapsible>
       )}
 
-      <Collapsible id="guide:thesis" title="For your thesis" className="mt-4" headerClassName="px-1" contentClassName="px-1 pt-1">
+      <Collapsible id="guide:thesis" title="Para tu tesis" className="mt-4" headerClassName="px-1" contentClassName="px-1 pt-1">
         <span className="mb-1.5 inline-flex items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground">
           <span className={cn('size-1.5 rounded-full', LEVEL[guide.relevanceLevel].dot)} /> {LEVEL[guide.relevanceLevel].label}
         </span>
@@ -204,9 +204,9 @@ function Guide({ guide, paperId, rebuilding }: { guide: PaperGuide; paperId: str
 
       <Collapsible
         id="guide:roadmap"
-        title="Roadmap"
+        title="Hoja de ruta"
         count={guide.sections.length}
-        summary={`Read ${advice('read')} · Skim ${advice('skim')} · Skip ${advice('skip')}`}
+        summary={`Leer ${advice('read')} · Hojear ${advice('skim')} · Saltar ${advice('skip')}`}
         className="mt-3"
         headerClassName="px-1"
       >
@@ -233,7 +233,7 @@ function Guide({ guide, paperId, rebuilding }: { guide: PaperGuide; paperId: str
 
       <Collapsible
         id="guide:sentences"
-        title="Key sentences"
+        title="Oraciones clave"
         count={guide.sentences.filter((s) => s.facet !== 'definition').length}
         className="mt-3"
         headerClassName="px-1"
@@ -262,7 +262,7 @@ function Guide({ guide, paperId, rebuilding }: { guide: PaperGuide; paperId: str
       {guide.questions.length > 0 && (
         <Collapsible
           id="guide:questions"
-          title="Read with these questions"
+          title="Leé con estas preguntas"
           count={guide.questions.length}
           className="mt-3"
           headerClassName="px-1"
@@ -279,11 +279,11 @@ function Guide({ guide, paperId, rebuilding }: { guide: PaperGuide; paperId: str
 
       <div className="mt-5 flex items-center gap-2 px-1 text-[11.5px] text-faint">
         <span className="min-w-0 flex-1 truncate">
-          Built {timeAgo(guide.createdAt)} in {langShort(guide.language)}. Check quotes against the page.
+          Armada {timeAgo(guide.createdAt)} en {langShort(guide.language)}. Revisá las citas contra la página.
         </span>
-        <Hint label="Build the guide again (uses your current thesis settings)">
+        <Hint label="Volver a armar la guía (usa la configuración actual de tu tesis)">
           <Button variant="ghost" size="xs" className="text-muted-foreground" disabled={rebuilding} onClick={() => void buildGuide(paperId)}>
-            {rebuilding ? <Loader2 className="animate-spin" /> : <RotateCcw />} {rebuilding ? 'Rebuilding…' : 'Rebuild'}
+            {rebuilding ? <Loader2 className="animate-spin" /> : <RotateCcw />} {rebuilding ? 'Reconstruyendo…' : 'Reconstruir'}
           </Button>
         </Hint>
       </div>
@@ -303,7 +303,7 @@ function TermsSection({ guide, paperId }: { guide: PaperGuide; paperId: string }
   return (
     <Collapsible
       id="guide:terms"
-      title={defs.length ? 'Key terms & definitions' : 'Key terms'}
+      title={defs.length ? 'Términos clave y definiciones' : 'Términos clave'}
       count={guide.terms.length}
       summary={guide.terms.map((t) => t.term).join(', ')}
       className="mt-3"
@@ -397,7 +397,7 @@ function SentenceRow({ s, paperId, delay }: { s: SkimSentence; paperId: string; 
   const highlight = () => {
     const now = Date.now()
     saveAnnotation({ id: uid(), paperId, page: s.page, rects: s.rects, text: s.text, color: 'yellow', createdAt: now, updatedAt: now })
-    toast('Sentence highlighted')
+    toast('Oración resaltada')
   }
   return (
     <motion.div
@@ -418,20 +418,20 @@ function SentenceRow({ s, paperId, delay }: { s: SkimSentence; paperId: string; 
           <div className="-mb-1 flex h-6 items-center gap-0.5 pt-0.5">
             <span className="mr-1 text-[11px] text-faint tabular-nums">
               p. {s.page}
-              {!s.rects.length && ' · not marked on the page'}
+              {!s.rects.length && ' · sin marcar en la página'}
             </span>
             <div className="flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
               {s.rects.length > 0 && (
-                <IconButton size="icon-xs" label="Highlight in the paper" onClick={highlight}>
+                <IconButton size="icon-xs" label="Resaltar en el paper" onClick={highlight}>
                   <Highlighter />
                 </IconButton>
               )}
-              <IconButton size="icon-xs" label="Add to note" onClick={() => addQuoteToNote(paperId, s.page, s.text)}>
+              <IconButton size="icon-xs" label="Agregar a la nota" onClick={() => addQuoteToNote(paperId, s.page, s.text)}>
                 <NotebookPen />
               </IconButton>
               <IconButton
                 size="icon-xs"
-                label="Ask the assistant about it"
+                label="Preguntarle al asistente sobre esto"
                 onClick={() => askAssistant({ chatId: `paper:${paperId}`, quote: { paperId, page: s.page, text: s.text } })}
               >
                 <Sparkles />

@@ -9,6 +9,8 @@ const CHAT = 'translate'
 const MAX_TURNS = 12 // fresh thread now and then so context stays small and fast
 const TIMEOUT = 90_000
 
+// The stored values stay in English: they are persisted in Settings.translateTo,
+// used as the model's target language, and matched elsewhere with /^spanish/i.
 export const TRANSLATE_LANGUAGES = [
   'Spanish',
   'Spanish (Latin America)',
@@ -19,8 +21,22 @@ export const TRANSLATE_LANGUAGES = [
   'German'
 ] as const
 
-/** Short name for buttons: "Spanish (Spain)" → "Spanish". */
-export const langShort = (lang: string) => lang.replace(/\s*\(.*\)$/, '')
+/** Spanish display names for the stored (English) language values. */
+export const LANG_LABELS: Record<string, string> = {
+  Spanish: 'Español',
+  'Spanish (Latin America)': 'Español (Latinoamérica)',
+  'Spanish (Spain)': 'Español (España)',
+  English: 'Inglés',
+  Portuguese: 'Portugués',
+  French: 'Francés',
+  German: 'Alemán'
+}
+
+/** What the student sees: "Spanish (Spain)" → "Español (España)". */
+export const langLabel = (lang: string) => LANG_LABELS[lang] ?? lang
+
+/** Short name for buttons: "Spanish (Spain)" → "Español". */
+export const langShort = (lang: string) => langLabel(lang).replace(/\s*\(.*\)$/, '')
 
 export interface TranslationState {
   text: string
@@ -29,16 +45,16 @@ export interface TranslationState {
 }
 
 /** How to translate a passage from a paper; shared with the quotes saved to notes. */
-export const translationRules = (lang: string) => `- Keep the exact meaning and the academic register. Use the standard ${langShort(lang)} terminology of the field; when a key concept has no settled translation, add the original term in parentheses the first time, e.g. "capacidades dinámicas (dynamic capabilities)".
-- Keep numbers, statistics, variable names, abbreviations, author names and in-text citations such as (Smith, 2020) unchanged.
-- The passage was copied from a PDF: rejoin words split by line-break hyphens, ignore stray line breaks, running headers and footnote markers.
-- The selection may start or end partway through a word or sentence. Complete a cut-off word at either edge when its meaning is obvious ("perfor" → performance); never output invented word fragments.
-- If the passage is already in ${langShort(lang)}, return it unchanged.`
+export const translationRules = (lang: string) => `- Conservá el significado exacto y el registro académico. Usá la terminología estándar del campo en ${langShort(lang)}; cuando un concepto clave no tenga traducción establecida, agregá el término original entre paréntesis la primera vez, por ejemplo "capacidades dinámicas (dynamic capabilities)".
+- Dejá sin cambios los números, las estadísticas, los nombres de variables, las abreviaturas, los nombres de autores y las citas dentro del texto como (Smith, 2020).
+- El pasaje se copió de un PDF: volvé a unir las palabras cortadas por guiones de fin de línea e ignorá los saltos de línea sueltos, los encabezados de página y las marcas de notas al pie.
+- La selección puede empezar o terminar en medio de una palabra o de una oración. Completá una palabra cortada en cualquiera de los extremos cuando su sentido sea evidente ("perfor" → performance); nunca devuelvas fragmentos de palabras inventados.
+- Si el pasaje ya está en ${langShort(lang)}, devolvelo sin cambios.`
 
-const instructions = (lang: string) => `You translate passages from academic papers (business, management, economics, social science) into ${lang}.
-- Reply with the translation only: no preamble, notes, labels or surrounding quotation marks.
+const instructions = (lang: string) => `Traducís pasajes de papers académicos (negocios, management, economía, ciencias sociales) a ${langLabel(lang)}.
+- Respondé solo con la traducción: sin preámbulos, notas, etiquetas ni comillas alrededor.
 ${translationRules(lang)}
-- Every message is a new, independent passage.`
+- Cada mensaje es un pasaje nuevo e independiente.`
 
 const cache = new Map<string, string>()
 let turns = 0
@@ -102,7 +118,7 @@ export function translate(text: string, onUpdate: (s: TranslationState) => void)
     return () => {}
   }
   if (!useStore.getState().account?.connected) {
-    onUpdate({ text: '', done: true, error: `Connect your ${providerLabel()} account in Settings to translate.` })
+    onUpdate({ text: '', done: true, error: `Conectá tu cuenta de ${providerLabel()} en Ajustes para traducir.` })
     return () => {}
   }
 
@@ -140,7 +156,7 @@ export function translate(text: string, onUpdate: (s: TranslationState) => void)
     if (job?.id === id) {
       // Timed out without a terminal event.
       job = null
-      wrapped({ text: '', done: true, error: 'Translation timed out. Try again.' })
+      wrapped({ text: '', done: true, error: 'La traducción tardó demasiado. Probá de nuevo.' })
     }
   })()
 

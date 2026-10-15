@@ -1,6 +1,6 @@
 import type { Note, Paper } from '@shared/types'
 import { activeTab, toast, useStore } from '../store'
-import { formatReference, inText, plainRef, toBibtex } from './citation'
+import { formatReference, inTextGroup, plainRef, toBibtex } from './citation'
 
 interface JNode {
   type: string
@@ -16,6 +16,7 @@ export function citedPaperIds(content: unknown): string[] {
   const walk = (n?: JNode) => {
     if (!n) return
     if ((n.type === 'citation' || n.type === 'blockquote') && n.attrs?.paperId) ids.add(n.attrs.paperId)
+    for (const c of n.type === 'citation' ? (n.attrs?.extra ?? []) : []) ids.add(c.paperId)
     n.content?.forEach(walk)
   }
   walk(content as JNode)
@@ -39,8 +40,8 @@ function inline(nodes: JNode[] = []): string {
     .map((n) => {
       if (n.type === 'hardBreak') return '  \n'
       if (n.type === 'citation') {
-        const p = papers[n.attrs?.paperId]
-        return p ? inText(p, settings.citationStyle, n.attrs?.page) : ''
+        const cites: { paperId: string; page?: number | null }[] = [{ paperId: n.attrs?.paperId, page: n.attrs?.page }, ...(n.attrs?.extra ?? [])]
+        return inTextGroup(cites.flatMap((c) => (papers[c.paperId] ? [{ paper: papers[c.paperId], page: c.page }] : [])), settings.citationStyle)
       }
       let t = n.text ?? ''
       for (const m of n.marks ?? []) {
@@ -91,32 +92,32 @@ export function noteToMarkdown(note: Note): string {
   const body = (doc?.content ?? []).map((n) => block(n)).join('\n\n')
   const refs = bibliography(notePapers(note))
   const title = note.title ? `# ${note.title}\n\n` : ''
-  return `${title}${body}${refs.length ? `\n\n## References\n\n${refs.join('\n\n')}` : ''}\n`
+  return `${title}${body}${refs.length ? `\n\n## Referencias\n\n${refs.join('\n\n')}` : ''}\n`
 }
 
-const fileSafe = (s: string) => s.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'Untitled'
+const fileSafe = (s: string) => s.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'Sin título'
 
 export async function exportActiveNote(): Promise<void> {
   const s = useStore.getState()
   const tab = activeTab()
   const note = tab?.kind === 'note' ? s.notes[tab.id] : s.sideNoteId ? s.notes[s.sideNoteId] : null
-  if (!note) return toast('Open a note to export it')
+  if (!note) return toast('Abrí una nota para exportarla')
   const path = await window.api.shell.saveFile(`${fileSafe(note.title)}.md`, noteToMarkdown(note), [
     { name: 'Markdown', extensions: ['md'] }
   ])
-  if (path) toast('Note exported')
+  if (path) toast('Nota exportada')
 }
 
 export async function exportBibliography(): Promise<void> {
   const papers = Object.values(useStore.getState().papers)
-  if (!papers.length) return toast('Your library is empty')
+  if (!papers.length) return toast('Tu biblioteca está vacía')
   const path = await window.api.shell.saveFile('library.bib', papers.map(toBibtex).join('\n\n') + '\n', [
     { name: 'BibTeX', extensions: ['bib'] }
   ])
-  if (path) toast(`Exported ${papers.length} references`)
+  if (path) toast(`Se exportaron ${papers.length} referencias`)
 }
 
-export async function copyText(text: string, what = 'Copied'): Promise<void> {
+export async function copyText(text: string, what = 'Copiado'): Promise<void> {
   await navigator.clipboard.writeText(text)
   toast(what)
 }
@@ -130,5 +131,5 @@ export async function copyReference(p: Paper): Promise<void> {
       'text/html': new Blob([html], { type: 'text/html' })
     })
   ])
-  toast('Reference copied')
+  toast('Referencia copiada')
 }

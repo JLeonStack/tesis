@@ -1,7 +1,9 @@
 import type { JSONContent } from '@tiptap/react'
 import type { ThesisMeta } from '@shared/types'
+import { PROBLEM_SECTIONS } from '../research/framework'
 
-// Structure and guidance text of the UCEMA "Plantilla trabajo final - MBA" (2026).
+// Structure and guidance text of the UCEMA "Plantilla trabajo final - MBA" (2026),
+// with the body laid out as the 2026 workshop asks.
 
 export const SECTION_KINDS = ['dedicatoria', 'agradecimientos', 'resumen', 'toc', 'cuerpo', 'referencias', 'apendices'] as const
 export type SectionKind = (typeof SECTION_KINDS)[number]
@@ -10,11 +12,38 @@ export const SECTION_INFO: Record<SectionKind, { label: string; title?: string; 
   dedicatoria: { label: 'Dedicatoria', optional: true },
   agradecimientos: { label: 'Agradecimientos', optional: true },
   resumen: { label: 'Resumen', title: 'Resumen' },
-  toc: { label: 'Tabla de contenido', title: 'Tabla de Contenido' },
+  toc: { label: 'Tabla de contenidos', title: 'Tabla de Contenidos' },
   cuerpo: { label: 'Cuerpo del trabajo' },
-  referencias: { label: 'Referencias', title: 'Referencias' },
-  apendices: { label: 'Apéndices', title: 'Apéndices', optional: true }
+  referencias: { label: 'Referencias bibliográficas', title: 'Referencias Bibliográficas' },
+  apendices: { label: 'Materiales suplementarios', title: 'Materiales Suplementarios', optional: true }
 }
+
+/** A section's title: the student's, else the template's. Editable on the sheet. */
+export const sectionTitle = (kind: SectionKind, custom?: string | null): string | undefined =>
+  SECTION_INFO[kind]?.title ? custom?.trim() || SECTION_INFO[kind].title : undefined
+
+/** The body's headings, in order (levels 4 and 5 run in, ending in a period). Every one can be renamed or deleted. */
+export const BODY_OUTLINE: { level: 1 | 2 | 3 | 4; text: string }[] = [
+  { level: 1, text: 'Introducción' },
+  { level: 2, text: 'Estado del Arte y Revisión Bibliográfica' },
+  { level: 2, text: 'Planteo y Relevancia del Problema' },
+  { level: 2, text: 'Pregunta de Investigación' },
+  { level: 2, text: 'Hipótesis' },
+  { level: 1, text: 'Objetivo General' },
+  { level: 1, text: 'Desarrollo del Tema' },
+  { level: 2, text: 'Métodos' },
+  { level: 3, text: 'Participantes' },
+  { level: 4, text: 'Consideraciones Éticas.' },
+  { level: 4, text: 'Criterios de Inclusión y Exclusión.' },
+  { level: 4, text: 'Muestreo.' },
+  { level: 3, text: 'Herramientas' },
+  { level: 4, text: 'Diseño.' },
+  { level: 4, text: 'Materiales.' },
+  { level: 4, text: 'Procedimiento.' },
+  { level: 4, text: 'Procesamiento Estadístico.' },
+  { level: 2, text: 'Resultados' },
+  { level: 2, text: 'Conclusión, Discusión y Aplicación' }
+]
 
 export const WORD_LIMIT = 18000
 export const ABSTRACT_LIMIT = 250
@@ -24,8 +53,19 @@ export const KEYWORDS_LABEL = 'Palabras clave'
 export const HEADING_GUIDANCE: Record<string, string> = {
   introduccion:
     'Informá al lector sobre el contenido del trabajo, los objetivos y la metodología seguida. Podés destacar el aporte para la comunidad académica o empresarial. Breve y clara.',
+  'estado del arte y revision bibliografica':
+    'Qué dice la literatura sobre tus 2 temas y su relación: los constructos con sus autores, los hallazgos principales y lo que todavía no se sabe. Citá cada idea ajena (APA 7).',
   'objetivo general':
     'Condensá el tema central del trabajo (la respuesta a la pregunta que se plantea) con verbos en infinitivo: analizar, identificar, describir, comprobar…',
+  ...Object.fromEntries(PROBLEM_SECTIONS.map((p) => [normalizeHeading(p.heading), p.guidance])),
+  'tema y relevancia del problema': PROBLEM_SECTIONS[0].guidance,
+  'desarrollo del tema': 'Cómo se estudió el problema y qué se encontró: métodos, resultados y la conclusión, discusión y aplicación.',
+  metodos: 'Quiénes participaron, con qué herramientas y cómo se procesaron los datos, con el detalle suficiente para replicar el estudio.',
+  participantes: 'La muestra: cantidad, características demográficas y cómo se reclutó. Abajo: consideraciones éticas, criterios de inclusión y exclusión, y muestreo.',
+  herramientas: 'Diseño del estudio, materiales (instrumentos, con su validación y confiabilidad), procedimiento y procesamiento estadístico.',
+  resultados: 'Los resultados en el orden de las hipótesis, con tablas y figuras en formato APA, sin interpretarlos todavía.',
+  'conclusion, discusion y aplicacion':
+    'Interpretá los resultados frente a la literatura, con sus limitaciones e implicancias, y proponé la aplicación práctica para las organizaciones. Cerrá recapitulando el aporte en relación con el objetivo.',
   conclusion:
     'Recapitulá los puntos principales vinculados con el objetivo, presentá los resultados y destacá el aporte de aplicar el marco teórico al caso. Breve, eficaz y concisa.'
 }
@@ -42,12 +82,13 @@ export const SECTION_GUIDANCE: Partial<Record<SectionKind, string>> = {
 export const DEFAULT_HEADING_GUIDANCE =
   'Desarrollá el tema. Hasta cinco niveles de título, sin numerar y con capitalización de títulos.'
 
-export const normalizeHeading = (s: string) =>
-  s
+export function normalizeHeading(s: string): string {
+  return s
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim()
+}
 
 const h = (level: number, text: string): JSONContent => ({ type: 'heading', attrs: { level }, content: [{ type: 'text', text }] })
 const p = (content?: JSONContent[]): JSONContent => (content ? { type: 'paragraph', content } : { type: 'paragraph' })
@@ -59,12 +100,17 @@ export function defaultSectionContent(kind: SectionKind): JSONContent[] {
     case 'toc':
       return [{ type: 'tocBlock' }]
     case 'cuerpo':
-      return [h(1, 'Introducción'), p(), h(1, 'Objetivo General'), p(), h(1, 'Título del Primer Capítulo'), p(), h(1, 'Conclusión'), p()]
+      return BODY_OUTLINE.map(outlineNode).flatMap((n) => (n.type === 'heading' ? [n, p()] : [n]))
     case 'referencias':
       return [{ type: 'referenceList' }]
     default:
       return [p()]
   }
+}
+
+/** A heading of the outline as a node: a heading, or a paragraph that opens with a run-in heading. */
+export function outlineNode(o: (typeof BODY_OUTLINE)[number]): JSONContent {
+  return o.level <= 3 ? h(o.level, o.text) : p([{ type: 'text', text: o.text, marks: [{ type: 'runIn', attrs: { level: o.level } }] }, { type: 'text', text: ' ' }])
 }
 
 export function sectionJSON(kind: SectionKind, content = defaultSectionContent(kind)): JSONContent {

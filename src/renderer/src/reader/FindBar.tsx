@@ -67,7 +67,7 @@ export function FindBar({ paperId, onClose, onGo }: { paperId: string; onClose: 
         <input
           ref={input}
           value={q}
-          placeholder={pages ? 'Find in paper' : 'Preparing text…'}
+          placeholder={pages ? 'Buscar en el paper' : 'Preparando el texto…'}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') step(e.shiftKey ? -1 : 1)
@@ -76,15 +76,15 @@ export function FindBar({ paperId, onClose, onGo }: { paperId: string; onClose: 
           className="h-7 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint"
         />
         <span className="px-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground tabular-nums">
-          {q.trim().length >= 2 ? (hits.length ? `${i + 1} / ${hits.length}` : 'No results') : ''}
+          {q.trim().length >= 2 ? (hits.length ? `${i + 1} / ${hits.length}` : 'Sin resultados') : ''}
         </span>
-        <IconButton size="icon-xs" label="Previous" keys={['⇧', '↩']} onClick={() => step(-1)}>
+        <IconButton size="icon-xs" label="Anterior" keys={['⇧', '↩']} onClick={() => step(-1)}>
           <ChevronUp />
         </IconButton>
-        <IconButton size="icon-xs" label="Next" keys={['↩']} onClick={() => step(1)}>
+        <IconButton size="icon-xs" label="Siguiente" keys={['↩']} onClick={() => step(1)}>
           <ChevronDown />
         </IconButton>
-        <IconButton size="icon-xs" label="Close" keys={['esc']} onClick={onClose}>
+        <IconButton size="icon-xs" label="Cerrar" keys={['esc']} onClick={onClose}>
           <X />
         </IconButton>
       </div>

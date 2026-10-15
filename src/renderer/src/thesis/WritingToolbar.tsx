@@ -24,17 +24,21 @@ import {
   RotateCcw,
   EyeOff,
   ArrowLeft,
-  Lightbulb
+  Lightbulb,
+  BookCheck,
+  UserRound
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
 import { TextShimmer } from '@/components/motion/text-shimmer'
 import { Hint } from '../components/common'
-import { askAssistant, openPalette, toast, useStore } from '../store'
+import { askAssistant, logAiUse, openPalette, toast, useStore } from '../store'
 import { mod } from '../lib/util'
 import { ASSIST_LABELS, runAssist, type AssistKind, type AssistResult } from './assist'
 import { CONNECTOR_GROUPS, type Connector } from './connectors'
 import { LINT_EVENT, LINT_RULE_LABELS, type LintIssue } from './lint'
+import { UNCITED_EVENT, type SentenceRange } from './uncited'
+import { backSentence } from './evidence'
 import { contextOf, writingContext, countWordsIn, diffWords, matchCase, rangeText, rebuild, stripMarkers, titleCase, wordAt, type RangeText } from './text'
 
 /** Window event that opens the helpers at the caret (⌘. or the toolbar's Ayudas button). */
@@ -47,6 +51,10 @@ type Panel =
   | { type: 'more' }
   | { type: 'connectors' }
   | { type: 'lint'; issue: LintIssue }
+  | { type: 'uncited'; range: SentenceRange }
+
+/** Cards that stand alone over flagged text, without the toolbar. */
+const isCard = (p: Panel | null | undefined) => p?.type === 'lint' || p?.type === 'uncited'
 
 interface Anchor {
   from: number
@@ -59,7 +67,8 @@ interface Anchor {
 const AI_REWRITES: { kind: AssistKind; hint: string }[] = [
   { kind: 'clearer', hint: 'Misma idea, más fluida' },
   { kind: 'formal', hint: 'Registro académico e impersonal' },
-  { kind: 'concise', hint: 'Sin relleno ni redundancias' }
+  { kind: 'concise', hint: 'Sin relleno ni redundancias' },
+  { kind: 'voice', hint: 'Como lo escribirías vos (Ajustes → Tu voz)' }
 ]
 
 const LOADING: Record<AssistKind, string> = {
@@ -68,6 +77,7 @@ const LOADING: Record<AssistKind, string> = {
   clearer: 'Buscando una redacción más clara…',
   formal: 'Ajustando el registro…',
   concise: 'Condensando…',
+  voice: 'Reescribiendo con tu voz…',
   define: 'Buscando la definición…',
   translate: 'Traduciendo…',
   ideas: 'Pensando preguntas para seguir…'
@@ -90,6 +100,8 @@ function selectionRect(editor: Editor, from: number, to: number): DOMRect {
 export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId: string }) {
   const [anchor, setAnchor] = useState<Anchor | null>(null)
   const [panel, setPanel] = useState<Panel | null>(null)
+  const voiceOn = useStore((s) => s.settings.voice.enabled)
+  const rewrites = voiceOn ? AI_REWRITES : AI_REWRITES.filter((r) => r.kind !== 'voice')
   const rootRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const reqId = useRef(0)
@@ -108,12 +120,12 @@ export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId:
     const { selection } = editor.state
     const { from, to, empty, $from, $to } = selection
     if (empty || !(selection instanceof TextSelection) || !$from.parent.inlineContent || !$to.parent.inlineContent || !editor.isFocused) {
-      if (panelRef.current?.type !== 'lint' && !(anchor?.caret && panelRef.current)) setAnchor((a) => (a?.caret ? a : null))
+      if (!isCard(panelRef.current) && !(anchor?.caret && panelRef.current)) setAnchor((a) => (a?.caret ? a : null))
       return
     }
     if (!editor.state.doc.textBetween(from, to).trim()) return setAnchor(null)
     setAnchor({ from, to, rect: selectionRect(editor, from, to), caret: false })
-    setPanel((p) => (p && p.type !== 'lint' && (p.type !== 'assist' || (p.target.from === from && p.target.to === to)) ? p : null))
+    setPanel((p) => (p && !isCard(p) && (p.type !== 'assist' || (p.target.from === from && p.target.to === to)) ? p : null))
   }, [editor, anchor?.caret])
 
   useEffect(() => {
@@ -122,7 +134,7 @@ export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId:
       if (editor.view.dom.contains(e.target as Node)) {
         dragging.current = true
         setAnchor(null)
-        setPanel((p) => (p?.type === 'lint' ? p : null))
+        setPanel((p) => (isCard(p) ? p : null))
       } else close()
     }
     const onUp = () => {
@@ -137,7 +149,7 @@ export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId:
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || !anchorRef.current) return
-      if (panelRef.current && panelRef.current.type !== 'lint') setPanel(null)
+      if (panelRef.current && !isCard(panelRef.current)) setPanel(null)
       else close()
     }
     const onUpdate = ({ transaction }: { transaction: { getMeta: (k: string) => unknown } }) => {
@@ -194,11 +206,18 @@ export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId:
       setAnchor({ from: issue.from, to: issue.to, rect, caret: true })
       setPanel({ type: 'lint', issue })
     }
+    const onUncited = (e: Event) => {
+      const { range, rect } = (e as CustomEvent<{ range: SentenceRange; rect: DOMRect }>).detail
+      setAnchor({ from: range.from, to: range.to, rect, caret: true })
+      setPanel({ type: 'uncited', range })
+    }
     window.addEventListener(HELPERS_EVENT, onHelpers)
     window.addEventListener(LINT_EVENT, onLint)
+    window.addEventListener(UNCITED_EVENT, onUncited)
     return () => {
       window.removeEventListener(HELPERS_EVENT, onHelpers)
       window.removeEventListener(LINT_EVENT, onLint)
+      window.removeEventListener(UNCITED_EVENT, onUncited)
     }
   }, [editor, sync])
 
@@ -300,6 +319,16 @@ export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId:
             <Superscript />
           </Tool>
           <Tool
+            label="Respaldar la oración con tu biblioteca"
+            keys={[mod, '⌥', 'E']}
+            onClick={() => {
+              close()
+              backSentence(editor, thesisId, anchor.from, anchor.from)
+            }}
+          >
+            <BookCheck />
+          </Tool>
+          <Tool
             label="Citar una fuente"
             keys={[mod, '⇧', 'C']}
             onClick={() => {
@@ -337,6 +366,17 @@ export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId:
           </Tool>
           <Sep />
           <Tool
+            label={aiHint ?? 'Respaldar: papers de tu biblioteca que dicen algo parecido, con el pasaje y la página'}
+            keys={[mod, '⌥', 'E']}
+            disabled={!oneBlock}
+            onClick={() => {
+              close()
+              backSentence(editor, thesisId, anchor.from, anchor.to)
+            }}
+          >
+            <BookCheck /> Respaldar
+          </Tool>
+          <Tool
             label="Citar una fuente después de la selección"
             keys={[mod, '⇧', 'C']}
             onClick={() => {
@@ -371,7 +411,7 @@ export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId:
   if (panel?.type === 'rewrite') {
     body = (
       <Menu>
-        {AI_REWRITES.map((r) => (
+        {rewrites.map((r) => (
           <MenuItem key={r.kind} icon={<Wand2 />} label={ASSIST_LABELS[r.kind]} hint={r.hint} onClick={() => void ask(r.kind, anchor.from, anchor.to)} />
         ))}
       </Menu>
@@ -380,7 +420,7 @@ export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId:
     body = (
       <Menu>
         {short && <MenuItem icon={<BookOpenText />} label="Definir" hint="Significado y registro" disabled={!oneBlock} onClick={() => void ask('define', anchor.from, anchor.to)} />}
-        {!short && AI_REWRITES.map((r) => <MenuItem key={r.kind} icon={<Wand2 />} label={ASSIST_LABELS[r.kind]} hint={r.hint} disabled={!oneBlock} onClick={() => void ask(r.kind, anchor.from, anchor.to)} />)}
+        {!short && rewrites.map((r) => <MenuItem key={r.kind} icon={<Wand2 />} label={ASSIST_LABELS[r.kind]} hint={r.hint} disabled={!oneBlock} onClick={() => void ask(r.kind, anchor.from, anchor.to)} />)}
         <MenuItem icon={<Languages />} label="Traducir al español" hint="Para citas o notas en inglés" disabled={!oneBlock} onClick={() => void ask('translate', anchor.from, anchor.to)} />
         <MenuItem
           icon={<CaseSensitive />}
@@ -397,10 +437,11 @@ export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId:
         <MenuItem
           icon={<Search />}
           label="Buscar respaldo en mis fuentes"
-          hint="El asistente busca en tu biblioteca"
+          hint="Pasajes con su página y si apoyan lo que decís"
+          disabled={!oneBlock}
           onClick={() => {
             close()
-            askAssistant({ chatId, prefill: `¿Qué fuentes de mi biblioteca respaldan o discuten esta afirmación? Indicá autor, año y páginas.\n\n«${plain}»`, autoSend: true })
+            backSentence(editor, thesisId, anchor.from, anchor.to)
           }}
         />
         <MenuItem
@@ -440,19 +481,36 @@ export function WritingToolbar({ editor, thesisId }: { editor: Editor; thesisId:
         onSynonyms={() => void ask('synonyms', panel.issue.from, panel.issue.to)}
       />
     )
+  } else if (panel?.type === 'uncited') {
+    body = (
+      <UncitedCard
+        text={panel.range.text}
+        onSearch={() => {
+          close()
+          backSentence(editor, thesisId, panel.range.from, panel.range.from)
+        }}
+        onOwn={() => {
+          editor.commands.markAsOwn(panel.range.text)
+          close()
+        }}
+      />
+    )
   } else if (panel?.type === 'assist') {
     body = (
       <AssistCard
         panel={panel}
         onRetry={() => void ask(panel.kind, panel.target.from, panel.target.to)}
         onBack={() => setPanel(panel.kind === 'synonyms' || panel.kind === 'correct' || panel.kind === 'ideas' ? null : { type: 'rewrite' })}
-        onReplace={(text) => replace(panel.target, panel.kind === 'synonyms' ? matchCase(panel.target.text, text) : text)}
+        onReplace={(text) => {
+          replace(panel.target, panel.kind === 'synonyms' ? matchCase(panel.target.text, text) : text)
+          logAiUse({ kind: 'assist', label: ASSIST_LABELS[panel.kind], chars: text.length, accepted: true })
+        }}
       />
     )
   }
 
   return (
-    <Floating ref={rootRef} rect={anchor.rect} showToolbar={panel?.type !== 'lint'} toolbar={toolbar} body={body} />
+    <Floating ref={rootRef} rect={anchor.rect} showToolbar={!isCard(panel)} toolbar={toolbar} body={body} />
   )
 }
 
@@ -633,12 +691,12 @@ function AssistCard({
       </div>
     )
   } else if (panel.status === 'error') {
-    const needsAccount = /Conectá|ChatGPT session|Reconnect/i.test(panel.error ?? '')
+    const needsAccount = /Conectá|Reconectate/i.test(panel.error ?? '')
     content = (
       <div className="space-y-2 px-3.5 py-3 text-[13px]">
         <p className="text-muted-foreground">{panel.error}</p>
         <button onClick={needsAccount ? settingsOpen : onRetry} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-brand-text hover:underline">
-          {needsAccount ? 'Abrir Settings' : (<><RotateCcw className="size-3.5" /> Reintentar</>)}
+          {needsAccount ? 'Abrir Ajustes' : (<><RotateCcw className="size-3.5" /> Reintentar</>)}
         </button>
       </div>
     )
@@ -779,6 +837,25 @@ function Connectors({ onPick }: { onPick: (c: Connector) => void }) {
             </div>
           </div>
         ))}
+      </div>
+    </>
+  )
+}
+
+function UncitedCard({ text, onSearch, onOwn }: { text: string; onSearch: () => void; onOwn: () => void }) {
+  return (
+    <>
+      <CardHeader title="Sin cita">
+        <button onClick={onOwn} className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[11.5px] hover:bg-accent hover:text-foreground" title="Es tu planteo: no volver a marcarla">
+          <UserRound className="size-3.5" /> Es mía
+        </button>
+      </CardHeader>
+      <div className="space-y-2 px-3.5 py-3">
+        <p className="line-clamp-3 font-serif text-[13px] leading-relaxed">{text}</p>
+        <p className="text-[12.5px] leading-relaxed text-muted-foreground">Afirma algo sin citar una fuente. La guía de la cátedra pide citar toda idea ajena.</p>
+        <button onClick={onSearch} className="inline-flex items-center gap-1.5 rounded-md border border-brand/40 bg-brand-soft px-2 py-0.5 text-[12.5px] text-brand-text">
+          <BookCheck className="size-3.5" /> Buscar respaldo en mi biblioteca
+        </button>
       </div>
     </>
   )

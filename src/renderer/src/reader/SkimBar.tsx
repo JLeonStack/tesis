@@ -55,7 +55,7 @@ export function SkimBar({
       className="flex-none border-b bg-background"
     >
       <div className="flex h-9 items-center gap-1 pr-2 pl-3">
-        <span className="mr-1 flex-none text-xs font-semibold">Skim</span>
+        <span className="mr-1 flex-none text-xs font-semibold">Lectura rápida</span>
         <span className="mr-1.5 flex-none text-[11.5px] whitespace-nowrap text-faint tabular-nums">
           ~{skimMinutes(guide)} min
         </span>
@@ -67,7 +67,7 @@ export function SkimBar({
               (s) => s.facet === f.id && s.rects.length,
             ).length;
             return (
-              <Hint key={f.id} label={`${f.hint} · ⌥-click to show only these`}>
+              <Hint key={f.id} label={`${f.hint} · ⌥-clic para mostrar solo estas`}>
                 <button
                   aria-pressed={on}
                   onClick={(e) => toggle(f.id, e.altKey)}
@@ -97,11 +97,11 @@ export function SkimBar({
         <span className="mr-0.5 flex-none text-[11.5px] whitespace-nowrap text-muted-foreground tabular-nums">
           {total
             ? `${position == null ? "–" : position + 1} / ${total}`
-            : "None shown"}
+            : "Ninguna visible"}
         </span>
         <IconButton
           size="icon-xs"
-          label="Previous key sentence"
+          label="Oración clave anterior"
           keys={["K"]}
           disabled={!total}
           onClick={() => onStep(-1)}
@@ -110,7 +110,7 @@ export function SkimBar({
         </IconButton>
         <IconButton
           size="icon-xs"
-          label="Next key sentence"
+          label="Oración clave siguiente"
           keys={["J"]}
           disabled={!total}
           onClick={() => onStep(1)}
@@ -119,7 +119,7 @@ export function SkimBar({
         </IconButton>
         <IconButton
           size="icon-xs"
-          label="Open the reading guide"
+          label="Abrir la guía de lectura"
           onClick={() =>
             useStore.setState({ rightOpen: true, rightTab: "guide" })
           }
@@ -128,7 +128,7 @@ export function SkimBar({
         </IconButton>
         <IconButton
           size="icon-xs"
-          label="Turn off skim mode"
+          label="Desactivar la lectura rápida"
           keys={[mod, "⌥", "S"]}
           onClick={onClose}
         >

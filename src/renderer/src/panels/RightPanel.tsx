@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { Sparkles, Highlighter, Info, Library, PanelRightClose, PanelRightOpen, ListTree, ListChecks, Compass } from 'lucide-react'
+import { Sparkles, Highlighter, Info, Library, PanelRightClose, PanelRightOpen, ListTree, ListChecks, Compass, BookCheck } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useStore, type RightTab } from '../store'
 import { AssistantPanel } from '../assistant/AssistantPanel'
@@ -8,6 +8,8 @@ import { GuidePanel } from './GuidePanel'
 import { InfoPanel } from './InfoPanel'
 import { SourcesPanel } from './SourcesPanel'
 import { ChecksPanel, OutlinePanel } from '../thesis/ThesisPanels'
+import { EvidencePanel, useUncitedCount } from '../thesis/EvidencePanel'
+import { useEvidence } from '../thesis/evidence'
 import { Segmented } from '../components/Segmented'
 import { IconButton } from '../components/common'
 import { Rail, RailButton } from '../components/Rail'
@@ -29,19 +31,22 @@ function usePanelTabs() {
   const id = active?.split(':')[1] ?? ''
   const hlCount = useStore((s) => (kind === 'paper' ? Object.values(s.annotations).filter((a) => a.paperId === id).length : 0))
   const guiding = useStore((s) => kind === 'paper' && !!s.guiding[id])
+  const uncited = useUncitedCount(kind === 'thesis' ? id : null)
+  const backing = useEvidence((s) => s.status === 'searching' || s.status === 'checking' || s.status === 'reading')
   const tabs: PanelTab[] = [
-    { value: 'assistant', label: 'Assistant', icon: <Sparkles className="text-brand" /> },
+    { value: 'assistant', label: 'Asistente', icon: <Sparkles className="text-brand" /> },
     ...(kind === 'paper'
       ? [
-          { value: 'guide' as const, label: 'Guide', icon: <Compass />, busy: guiding },
-          { value: 'highlights' as const, label: 'Highlights', icon: <Highlighter className="text-bloom-amber" />, count: hlCount || undefined },
-          { value: 'info' as const, label: 'Cite', icon: <Info /> }
+          { value: 'guide' as const, label: 'Guía', icon: <Compass />, busy: guiding },
+          { value: 'highlights' as const, label: 'Resaltados', icon: <Highlighter className="text-bloom-amber" />, count: hlCount || undefined },
+          { value: 'info' as const, label: 'Cita', icon: <Info /> }
         ]
       : kind === 'note'
-        ? [{ value: 'info' as const, label: 'Sources', icon: <Library /> }]
+        ? [{ value: 'info' as const, label: 'Fuentes', icon: <Library /> }]
         : kind === 'thesis'
           ? [
               { value: 'outline' as const, label: 'Esquema', icon: <ListTree /> },
+              { value: 'support' as const, label: 'Respaldo', icon: <BookCheck className="text-success" />, count: uncited || undefined, busy: backing },
               { value: 'checks' as const, label: 'Requisitos', icon: <ListChecks className="text-kind-note" /> }
             ]
           : [])
@@ -89,7 +94,7 @@ export function RightPanel() {
                     <span className="flex items-center gap-1.5">
                       {text}
                       <span
-                        aria-label={status === 'busy' ? 'working' : 'new answer'}
+                        aria-label={status === 'busy' ? 'trabajando' : 'respuesta nueva'}
                         className={`size-1.5 rounded-full bg-brand ${status === 'busy' ? 'animate-pulse' : ''}`}
                       />
                     </span>
@@ -102,7 +107,7 @@ export function RightPanel() {
         </div>
         <span className="flex-1" />
         {/* Serial position: collapse sits at the far end, where panel controls are expected. */}
-        <IconButton className="no-drag" label="Collapse panel" keys={[mod, 'J']} onClick={() => useStore.setState({ rightOpen: false })}>
+        <IconButton className="no-drag" label="Contraer panel" keys={[mod, 'J']} onClick={() => useStore.setState({ rightOpen: false })}>
           <PanelRightClose />
         </IconButton>
       </div>
@@ -121,6 +126,7 @@ export function RightPanel() {
           {current === 'info' && kind === 'paper' && <InfoPanel paperId={id} />}
           {current === 'info' && kind === 'note' && <SourcesPanel noteId={id} />}
           {current === 'outline' && kind === 'thesis' && <OutlinePanel thesisId={id} />}
+          {current === 'support' && kind === 'thesis' && <EvidencePanel thesisId={id} />}
           {current === 'checks' && kind === 'thesis' && <ChecksPanel thesisId={id} />}
         </motion.div>
       </AnimatePresence>
@@ -136,7 +142,7 @@ export function RightRail() {
   return (
     <Rail side="right">
       <div className="drag flex h-[46px] w-full flex-none items-center justify-center border-b">
-        <IconButton className="no-drag" label="Expand panel" keys={[mod, 'J']} side="left" onClick={() => useStore.setState({ rightOpen: true })}>
+        <IconButton className="no-drag" label="Expandir panel" keys={[mod, 'J']} side="left" onClick={() => useStore.setState({ rightOpen: true })}>
           <PanelRightOpen />
         </IconButton>
       </div>

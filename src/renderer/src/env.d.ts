@@ -11,6 +11,8 @@ declare global {
     reload(): void
     getURL(): string
     sendInputEvent(event: { type: 'keyDown' | 'keyUp' | 'char'; keyCode: string; modifiers?: string[] }): void
+    /** Runs code in the guest page (the assistant reads and draws on the board this way). */
+    executeJavaScript(code: string): Promise<unknown>
   }
 }
 

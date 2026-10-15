@@ -9,6 +9,14 @@ import { useStore } from '../store'
 import { langShort, prewarmTranslator } from '../lib/translate'
 
 export const COLORS: HighlightColor[] = ['yellow', 'green', 'blue', 'pink', 'purple']
+/** Spanish names of the highlight colors, for labels and tooltips. */
+export const COLOR_LABELS: Record<HighlightColor, string> = {
+  yellow: 'amarillo',
+  green: 'verde',
+  blue: 'azul',
+  pink: 'rosa',
+  purple: 'violeta'
+}
 export const COLOR_VAR: Record<HighlightColor, string> = {
   yellow: 'var(--hl-yellow-solid)',
   green: 'var(--hl-green-solid)',
@@ -77,9 +85,9 @@ export function SelectionToolbar({ box, actions }: { box: DOMRect; actions: Acti
     >
       <div className="flex items-center gap-1 px-1">
         {COLORS.map((c, i) => (
-          <Hint key={c} label={i === 0 ? 'Highlight' : `Highlight ${c}`} keys={i === 0 ? ['H'] : undefined} side="top">
+          <Hint key={c} label={i === 0 ? 'Resaltar' : `Resaltar en ${COLOR_LABELS[c]}`} keys={i === 0 ? ['H'] : undefined} side="top">
             <motion.button
-              aria-label={`Highlight ${c}`}
+              aria-label={`Resaltar en ${COLOR_LABELS[c]}`}
               whileHover={{ scale: 1.18 }}
               whileTap={{ scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
@@ -91,22 +99,22 @@ export function SelectionToolbar({ box, actions }: { box: DOMRect; actions: Acti
         ))}
       </div>
       <Separator orientation="vertical" className="mx-1 !h-4" />
-      <ToolButton label="Highlight with comment" onClick={actions.comment}>
+      <ToolButton label="Resaltar con comentario" onClick={actions.comment}>
         <MessageSquareText />
       </ToolButton>
-      <ToolButton label="Add quote to note" keys={['N']} onClick={actions.toNote}>
-        <NotebookPen /> Note
+      <ToolButton label="Agregar la cita textual a una nota" keys={['N']} onClick={actions.toNote}>
+        <NotebookPen /> Nota
       </ToolButton>
-      <ToolButton label={`Translate to ${langShort(lang)}`} keys={['T']} onClick={actions.translate}>
-        <Languages /> Translate
+      <ToolButton label={`Traducir a ${langShort(lang)}`} keys={['T']} onClick={actions.translate}>
+        <Languages /> Traducir
       </ToolButton>
-      <ToolButton label="Explain this" keys={['E']} onClick={actions.explain}>
-        <Lightbulb /> Explain
+      <ToolButton label="Explicar esto" keys={['E']} onClick={actions.explain}>
+        <Lightbulb /> Explicar
       </ToolButton>
-      <ToolButton label="Ask the assistant" keys={['A']} onClick={actions.ask} accent>
-        <Sparkles /> Ask
+      <ToolButton label="Preguntar al asistente" keys={['A']} onClick={actions.ask} accent>
+        <Sparkles /> Preguntar
       </ToolButton>
-      <ToolButton label="Copy" onClick={actions.copy}>
+      <ToolButton label="Copiar" onClick={actions.copy}>
         <Copy />
       </ToolButton>
     </motion.div>

@@ -267,7 +267,7 @@ export function SelectValue({ placeholder, className }: SelectValueProps) {
     <span
       className={cn(label ? "text-foreground" : "text-muted-foreground", className)}
     >
-      {label ?? placeholder ?? "Select"}
+      {label ?? placeholder ?? "Seleccionar"}
     </span>
   );
 }

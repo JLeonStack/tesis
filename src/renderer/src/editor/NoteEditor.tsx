@@ -40,7 +40,7 @@ import { Hint, IconButton } from '../components/common'
 
 export function NoteEditor({ noteId, side = false }: { noteId: string; side?: boolean }) {
   const note = useStore((s) => s.notes[noteId])
-  if (!note) return <div className="p-10 text-muted-foreground">This note was deleted.</div>
+  if (!note) return <div className="p-10 text-muted-foreground">Esta nota fue eliminada.</div>
   return <NoteEditorInner key={noteId} note={note} side={side} />
 }
 
@@ -75,7 +75,7 @@ function NoteEditorInner({ note, side }: { note: Note; side: boolean }) {
 
   const editor = useEditor(
     {
-      extensions: buildExtensions(side ? 'Jot down ideas while you read…' : 'Start writing. Markdown shortcuts work: # heading, - list, > quote'),
+      extensions: buildExtensions(side ? 'Anotá ideas mientras leés…' : 'Empezá a escribir. Funcionan los atajos de Markdown: # título, - lista, > cita textual'),
       content: (note.content as object) ?? '',
       autofocus: !side && !note.plain && !!note.title ? 'end' : false,
       editorProps: {
@@ -140,7 +140,7 @@ function NoteEditorInner({ note, side }: { note: Note; side: boolean }) {
               'block w-full resize-none overflow-hidden bg-transparent font-heading leading-tight font-medium tracking-tight outline-none placeholder:text-faint',
               side ? 'text-[22px]' : 'text-[32px]'
             )}
-            placeholder="Untitled"
+            placeholder="Sin título"
             rows={1}
             value={title}
             onChange={(e) => {
@@ -168,10 +168,10 @@ function NoteEditorInner({ note, side }: { note: Note; side: boolean }) {
             ))}
             <button
               onClick={() => openPalette('link', noteId)}
-              title="Link a paper to this note"
+              title="Vincular un paper a esta nota"
               className="inline-flex h-6 items-center gap-1.5 rounded-full border border-dashed px-2.5 text-xs font-medium text-faint transition-colors hover:border-primary hover:text-brand-text"
             >
-              <Plus className="size-3" /> {linked.length ? 'Link paper' : 'Link papers this note is about'}
+              <Plus className="size-3" /> {linked.length ? 'Vincular paper' : 'Vincular los papers de esta nota'}
             </button>
           </div>
           <EditorContent editor={editor} />
@@ -220,43 +220,43 @@ function Toolbar({ editor, note, saved, side }: { editor: Editor; note: Note; sa
 
   return (
     <div className="scrollbar-none flex h-10 flex-none items-center gap-0.5 overflow-x-auto border-b bg-card px-2.5">
-      <T on={st.bold} label="Bold" keys={[mod, 'B']} run={() => c().toggleBold().run()}>
+      <T on={st.bold} label="Negrita" keys={[mod, 'B']} run={() => c().toggleBold().run()}>
         <Bold />
       </T>
-      <T on={st.italic} label="Italic" keys={[mod, 'I']} run={() => c().toggleItalic().run()}>
+      <T on={st.italic} label="Cursiva" keys={[mod, 'I']} run={() => c().toggleItalic().run()}>
         <Italic />
       </T>
-      <T on={st.highlight} label="Highlight" keys={[mod, '⇧', 'H']} run={() => c().toggleHighlight().run()}>
+      <T on={st.highlight} label="Resaltado" keys={[mod, '⇧', 'H']} run={() => c().toggleHighlight().run()}>
         <Highlighter />
       </T>
       <Sep />
       {!side && (
         <>
-          <T on={st.h1} label="Heading 1" keys={['#']} run={() => c().toggleHeading({ level: 1 }).run()}>
+          <T on={st.h1} label="Título 1" keys={['#']} run={() => c().toggleHeading({ level: 1 }).run()}>
             <Heading1 />
           </T>
-          <T on={st.h2} label="Heading 2" keys={['##']} run={() => c().toggleHeading({ level: 2 }).run()}>
+          <T on={st.h2} label="Título 2" keys={['##']} run={() => c().toggleHeading({ level: 2 }).run()}>
             <Heading2 />
           </T>
           <Sep />
         </>
       )}
-      <T on={st.bullet} label="Bullet list" keys={['-']} run={() => c().toggleBulletList().run()}>
+      <T on={st.bullet} label="Lista con viñetas" keys={['-']} run={() => c().toggleBulletList().run()}>
         <List />
       </T>
       {!side && (
-        <T on={st.ordered} label="Numbered list" keys={['1.']} run={() => c().toggleOrderedList().run()}>
+        <T on={st.ordered} label="Lista numerada" keys={['1.']} run={() => c().toggleOrderedList().run()}>
           <ListOrdered />
         </T>
       )}
-      <T on={st.task} label="Checklist" keys={['[]']} run={() => c().toggleTaskList().run()}>
+      <T on={st.task} label="Lista de tareas" keys={['[]']} run={() => c().toggleTaskList().run()}>
         <ListChecks />
       </T>
-      <T on={st.quote} label="Quote" keys={['>']} run={() => c().toggleBlockquote().run()}>
+      <T on={st.quote} label="Cita textual" keys={['>']} run={() => c().toggleBlockquote().run()}>
         <Quote />
       </T>
       <Sep />
-      <Hint label="Insert citation" keys={[mod, '⇧', 'C']}>
+      <Hint label="Insertar cita" keys={[mod, '⇧', 'C']}>
         <Button
           variant="ghost"
           size="xs"
@@ -264,47 +264,47 @@ function Toolbar({ editor, note, saved, side }: { editor: Editor; note: Note; sa
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => openPalette('cite', note.id)}
         >
-          <CiteIcon /> {!side && 'Cite'}
+          <CiteIcon /> {!side && 'Citar'}
         </Button>
       </Hint>
       <span className="flex-1" />
-      <span className="flex items-center gap-1.5 px-1.5 text-[11.5px] whitespace-nowrap text-faint tabular-nums" title={saved ? 'All changes saved' : 'Saving…'}>
-        {!side && `${st.words} words`}
+      <span className="flex items-center gap-1.5 px-1.5 text-[11.5px] whitespace-nowrap text-faint tabular-nums" title={saved ? 'Todos los cambios guardados' : 'Guardando…'}>
+        {!side && `${st.words} ${st.words === 1 ? 'palabra' : 'palabras'}`}
         {saved ? <Check className="size-3" /> : <span className="size-1.5 animate-pulse rounded-full bg-faint" />}
       </span>
       {!side && (
-        <IconButton label="Ask the assistant about this note" keys={[mod, 'J']} onClick={() => useStore.setState({ rightOpen: true, rightTab: 'assistant' })}>
+        <IconButton label="Preguntar al asistente sobre esta nota" keys={[mod, 'J']} onClick={() => useStore.setState({ rightOpen: true, rightTab: 'assistant' })}>
           <Sparkles />
         </IconButton>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="More" className="text-muted-foreground">
+          <Button variant="ghost" size="icon-sm" aria-label="Más" className="text-muted-foreground">
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          {side && <DropdownMenuItem onSelect={() => openTab({ kind: 'note', id: note.id })}>Open as tab</DropdownMenuItem>}
-          <DropdownMenuItem onSelect={() => void copyText(noteToMarkdown(current()), 'Markdown copied')}>Copy as Markdown</DropdownMenuItem>
+          {side && <DropdownMenuItem onSelect={() => openTab({ kind: 'note', id: note.id })}>Abrir como pestaña</DropdownMenuItem>}
+          <DropdownMenuItem onSelect={() => void copyText(noteToMarkdown(current()), 'Markdown copiado')}>Copiar como Markdown</DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => {
               const refs = bibliography(notePapers(current()))
-              if (refs.length) void copyText(refs.map(plainRef).join('\n\n'), `${refs.length} references copied`)
+              if (refs.length) void copyText(refs.map(plainRef).join('\n\n'), `${refs.length} referencias copiadas`)
             }}
           >
-            Copy bibliography
+            Copiar bibliografía
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void exportActiveNote()}>
-            Export as Markdown… <DropdownMenuShortcut>{mod}⇧E</DropdownMenuShortcut>
+            Exportar como Markdown… <DropdownMenuShortcut>{mod}⇧E</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={() => deleteNote(note.id)}>
-            Delete note
+            Eliminar nota
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       {side && (
-        <IconButton label="Close side note" keys={[mod, '⇧', 'N']} onClick={() => useStore.setState({ sideNoteId: null })}>
+        <IconButton label="Cerrar nota lateral" keys={[mod, '⇧', 'N']} onClick={() => useStore.setState({ sideNoteId: null })}>
           <X />
         </IconButton>
       )}

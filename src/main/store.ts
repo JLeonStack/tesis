@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { CollectionName, LibrarySnapshot } from '../shared/types'
 
-const COLLECTIONS: CollectionName[] = ['papers', 'guides', 'recalls', 'annotations', 'notes', 'chats', 'theses', 'settings']
+const COLLECTIONS: CollectionName[] = ['papers', 'guides', 'recalls', 'annotations', 'notes', 'chats', 'theses', 'versions', 'tasks', 'sessions', 'lists', 'datasets', 'progress', 'ailog', 'settings']
 const WRITE_DELAY_MS = 250
 
 type Doc = { id: string }

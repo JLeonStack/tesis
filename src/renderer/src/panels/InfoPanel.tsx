@@ -11,18 +11,20 @@ import { Segmented } from '../components/Segmented'
 import { Copy, Sparkles, Loader2, FolderOpen, Trash2, RefreshCw, Star, ExternalLink } from 'lucide-react'
 import type { Author, CitationStyle, Paper, PaperType, ReadingStatus } from '@shared/types'
 import { deletePaper, patchPaper, patchSettings, toast, useStore } from '../store'
-import { authorLine, formatReference, inText, STYLE_LABELS, toBibtex } from '../lib/citation'
+import { authorLine, formatReference, inText, looksTitleCase, STYLE_LABELS, toBibtex, toSentenceCase } from '../lib/citation'
 import { copyReference, copyText } from '../lib/exporting'
-import { autofillWithAi, refreshFromDoi } from '../lib/ingest'
+import { autofillWithAi, detectPrintedPages, refreshFromDoi } from '../lib/ingest'
+import { parsePageRange } from '../lib/pages'
+import { TopicToggles } from '../research/TopicChips'
 
 const TYPES: { id: PaperType; label: string }[] = [
-  { id: 'article', label: 'Journal article' },
-  { id: 'book', label: 'Book' },
-  { id: 'chapter', label: 'Book chapter' },
-  { id: 'conference', label: 'Conference paper' },
-  { id: 'report', label: 'Report' },
-  { id: 'thesis', label: 'Thesis' },
-  { id: 'web', label: 'Web page' }
+  { id: 'article', label: 'Artículo de revista' },
+  { id: 'book', label: 'Libro' },
+  { id: 'chapter', label: 'Capítulo de libro' },
+  { id: 'conference', label: 'Ponencia de congreso' },
+  { id: 'report', label: 'Informe' },
+  { id: 'thesis', label: 'Tesis' },
+  { id: 'web', label: 'Página web' }
 ]
 
 const authorsToText = (a: Author[]) => a.map((x) => [x.family, x.given].filter(Boolean).join(', ')).join('\n')
@@ -54,7 +56,7 @@ export function InfoPanel({ paperId }: { paperId: string }) {
     setBusy('ai')
     try {
       await autofillWithAi(paper.id)
-      toast('Details filled in. Please double-check them.')
+      toast('Datos completados con IA. Revisalos.')
     } catch (e) {
       toast((e as Error).message)
     } finally {
@@ -67,7 +69,7 @@ export function InfoPanel({ paperId }: { paperId: string }) {
     setBusy('doi')
     const ok = await refreshFromDoi(paper.id, paper.doi)
     setBusy(null)
-    toast(ok ? 'Updated from Crossref' : 'No record found for that DOI')
+    toast(ok ? 'Actualizado desde Crossref' : 'No se encontró ningún registro para ese DOI')
   }
 
   return (
@@ -76,7 +78,7 @@ export function InfoPanel({ paperId }: { paperId: string }) {
       <Collapsible
         id="info.citation"
         variant="title"
-        title="Citation"
+        title="Cita"
         summary={inText(paper, style)}
         className="border-b bg-muted/40 px-3.5 py-2"
         contentClassName="flex flex-col gap-3 pt-1.5 pb-1.5"
@@ -101,27 +103,27 @@ export function InfoPanel({ paperId }: { paperId: string }) {
         </AnimatePresence>
         <div className="flex flex-wrap gap-1.5">
           <Button size="xs" className="h-7 px-2.5" onClick={() => void copyReference(paper)}>
-            <Copy /> Copy reference
+            <Copy /> Copiar referencia
           </Button>
-          <Hint label="Copy in-text citation">
-            <Button variant="outline" size="xs" className="h-7 px-2.5" onClick={() => void copyText(inText(paper, style), 'In-text citation copied')}>
+          <Hint label="Copiar cita en el texto">
+            <Button variant="outline" size="xs" className="h-7 px-2.5" onClick={() => void copyText(inText(paper, style), 'Cita en el texto copiada')}>
               {inText(paper, style)}
             </Button>
           </Hint>
-          <Button variant="ghost" size="xs" className="h-7 px-2.5 text-muted-foreground" onClick={() => void copyText(toBibtex(paper), 'BibTeX copied')}>
+          <Button variant="ghost" size="xs" className="h-7 px-2.5 text-muted-foreground" onClick={() => void copyText(toBibtex(paper), 'BibTeX copiado')}>
             BibTeX
           </Button>
         </div>
         {(paper.metaSource === 'pdf' || !paper.authors.length || !paper.year) && (
           <div className="flex items-center gap-2 rounded-lg bg-hl-yellow/15 px-2.5 py-2 text-xs text-muted-foreground">
-            <span className="flex-1">{paper.metaSource === 'pdf' ? 'Details were guessed from the PDF.' : 'Some details are missing.'}</span>
+            <span className="flex-1">{paper.metaSource === 'pdf' ? 'Los datos se dedujeron del PDF.' : 'Faltan algunos datos.'}</span>
             <Button
               variant="outline"
               size="xs"
               disabled={!!busy || !account?.connected || paper.textStatus !== 'ready'}
               onClick={() => void runAi()}
             >
-              {busy === 'ai' ? <Loader2 className="animate-spin" /> : <Sparkles />} Fill with AI
+              {busy === 'ai' ? <Loader2 className="animate-spin" /> : <Sparkles />} Completar con IA
             </Button>
           </div>
         )}
@@ -130,25 +132,25 @@ export function InfoPanel({ paperId }: { paperId: string }) {
       <Collapsible
         id="info.details"
         variant="title"
-        title="Details"
+        title="Detalles"
         summary={[authorLine(paper, 2), paper.year].filter(Boolean).join(' · ')}
         className="border-b px-3.5 py-2"
         contentClassName="flex flex-col gap-3 pt-1.5 pb-2"
       >
         <div className="grid grid-cols-2 gap-2.5">
-          <FieldShell label="Status">
+          <FieldShell label="Estado">
             <Select value={paper.status} onValueChange={(v) => patchPaper(paper.id, { status: v as ReadingStatus })}>
               <SelectTrigger size="sm" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="unread"><StatusDot className="bg-status-unread" />To read</SelectItem>
-                <SelectItem value="reading"><StatusDot className="bg-status-reading" />Reading</SelectItem>
-                <SelectItem value="read"><StatusDot className="bg-status-read" />Read</SelectItem>
+                <SelectItem value="unread"><StatusDot className="bg-status-unread" />Por leer</SelectItem>
+                <SelectItem value="reading"><StatusDot className="bg-status-reading" />Leyendo</SelectItem>
+                <SelectItem value="read"><StatusDot className="bg-status-read" />Leído</SelectItem>
               </SelectContent>
             </Select>
           </FieldShell>
-          <FieldShell label="Type">
+          <FieldShell label="Tipo">
             <Select value={paper.type} onValueChange={(v) => edit({ type: v as PaperType })}>
               <SelectTrigger size="sm" className="w-full">
                 <SelectValue />
@@ -163,38 +165,65 @@ export function InfoPanel({ paperId }: { paperId: string }) {
             </Select>
           </FieldShell>
         </div>
-        <Field label="Title" value={paper.title} multiline onCommit={(v) => v.trim() && edit({ title: v.trim() })} />
-        <Field label="Authors" hint="One per line: Family, Given" value={authorsToText(paper.authors)} multiline onCommit={(v) => edit({ authors: textToAuthors(v) })} />
+        <Field label="Título" value={paper.title} multiline onCommit={(v) => v.trim() && edit({ title: v.trim() })} />
+        {paper.type !== 'book' && paper.type !== 'report' && looksTitleCase(paper.title) && (
+          <div className="-mt-1.5 flex items-center gap-2 text-[12px] text-muted-foreground">
+            <span className="flex-1 leading-snug">APA escribe el título en tipo oración: mayúscula solo al inicio, después de dos puntos y en nombres propios.</span>
+            <Button
+              variant="outline"
+              size="xs"
+              className="h-7 flex-none"
+              onClick={() => {
+                edit({ title: toSentenceCase(paper.title) })
+                toast('Título en tipo oración. Revisá que los nombres propios (escalas, países, teorías con nombre) sigan con mayúscula.')
+              }}
+            >
+              Tipo oración
+            </Button>
+          </div>
+        )}
+        <Field label="Autores" hint="Uno por línea: Apellido, Nombre" value={authorsToText(paper.authors)} multiline onCommit={(v) => edit({ authors: textToAuthors(v) })} />
         <div className="grid grid-cols-2 gap-2.5">
-          <Field label="Year" value={paper.year ?? ''} onCommit={(v) => edit({ year: v.trim() || undefined })} />
-          <Field label="Pages" value={paper.pages ?? ''} onCommit={(v) => edit({ pages: v.trim() || undefined })} />
+          <Field label="Año" value={paper.year ?? ''} onCommit={(v) => edit({ year: v.trim() || undefined })} />
+          <Field label="Páginas" value={paper.pages ?? ''} onCommit={(v) => edit({ pages: v.trim() || undefined })} />
         </div>
+        <PrintedPages paper={paper} />
       </Collapsible>
 
       <Collapsible
         id="info.publication"
         variant="title"
-        title="Publication"
+        title="Publicación"
         defaultOpen={false}
-        summary={[paper.venue, paper.volume && `vol. ${paper.volume}`, paper.doi && 'DOI'].filter(Boolean).join(' · ') || 'Journal, DOI, link'}
+        summary={[paper.venue, paper.volume && `vol. ${paper.volume}`, paper.doi && 'DOI'].filter(Boolean).join(' · ') || 'Revista, DOI, enlace'}
         className="border-b px-3.5 py-2"
         contentClassName="flex flex-col gap-3 pt-1.5 pb-2"
       >
         <Field
-          label={paper.type === 'book' || paper.type === 'chapter' ? 'Book / series' : paper.type === 'conference' ? 'Conference' : 'Journal'}
+          label={paper.type === 'book' || paper.type === 'chapter' ? 'Libro / colección' : paper.type === 'conference' ? 'Congreso' : 'Revista'}
           value={paper.venue ?? ''}
           onCommit={(v) => edit({ venue: v.trim() || undefined })}
         />
-        <div className="grid grid-cols-2 gap-2.5">
-          <Field label="Volume" value={paper.volume ?? ''} onCommit={(v) => edit({ volume: v.trim() || undefined })} />
-          <Field label="Issue" value={paper.issue ?? ''} onCommit={(v) => edit({ issue: v.trim() || undefined })} />
+        <div className="grid grid-cols-3 gap-2.5">
+          <Field label="Volumen" value={paper.volume ?? ''} onCommit={(v) => edit({ volume: v.trim() || undefined })} />
+          <Field label="Número" value={paper.issue ?? ''} onCommit={(v) => edit({ issue: v.trim() || undefined })} />
+          <Field label="Nº artículo" value={paper.articleNumber ?? ''} onCommit={(v) => edit({ articleNumber: v.trim() || undefined })} />
         </div>
-        <Field label="Publisher" value={paper.publisher ?? ''} onCommit={(v) => edit({ publisher: v.trim() || undefined })} />
+        {(paper.type === 'chapter' || paper.type === 'conference') && (
+          <Field
+            label="Editores"
+            hint="Uno por línea: Apellido, Nombre"
+            value={authorsToText(paper.editors ?? [])}
+            multiline
+            onCommit={(v) => edit({ editors: textToAuthors(v) })}
+          />
+        )}
+        <Field label="Editorial" value={paper.publisher ?? ''} onCommit={(v) => edit({ publisher: v.trim() || undefined })} />
         <div className="flex items-end gap-1">
           <div className="flex-1">
             <Field label="DOI" value={paper.doi ?? ''} onCommit={(v) => edit({ doi: v.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//, '') || undefined })} />
           </div>
-          <IconButton label="Fetch details from Crossref" disabled={!paper.doi || !!busy} onClick={() => void runDoi()}>
+          <IconButton label="Obtener datos de Crossref" disabled={!paper.doi || !!busy} onClick={() => void runDoi()}>
             {busy === 'doi' ? <Loader2 className="animate-spin" /> : <RefreshCw />}
           </IconButton>
         </div>
@@ -202,7 +231,7 @@ export function InfoPanel({ paperId }: { paperId: string }) {
           <div className="flex-1">
             <Field label="URL" value={paper.url ?? ''} onCommit={(v) => edit({ url: v.trim() || undefined })} />
           </div>
-          <IconButton label="Open link" disabled={!paper.url} onClick={() => paper.url && window.api.shell.openExternal(paper.url)}>
+          <IconButton label="Abrir enlace" disabled={!paper.url} onClick={() => paper.url && window.api.shell.openExternal(paper.url)}>
             <ExternalLink />
           </IconButton>
         </div>
@@ -211,36 +240,43 @@ export function InfoPanel({ paperId }: { paperId: string }) {
       <Collapsible
         id="info.more"
         variant="title"
-        title="Tags & abstract"
+        title="Temas, etiquetas y resumen"
         defaultOpen={false}
-        summary={[paper.tags.length ? paper.tags.map((t) => `#${t}`).join(' ') : 'No tags', paper.abstract ? 'abstract' : ''].filter(Boolean).join(' · ')}
+        summary={[paper.tags.length ? paper.tags.map((t) => `#${t}`).join(' ') : 'Sin etiquetas', paper.abstract ? 'resumen' : ''].filter(Boolean).join(' · ')}
         className="border-b px-3.5 py-2"
         contentClassName="flex flex-col gap-3 pt-1.5 pb-2"
       >
+        {/* Not a FieldShell: a <label> would forward stray clicks to the first toggle. */}
+        <div className="flex flex-col gap-1.5">
+          <span className="flex items-baseline gap-2 text-[11.5px] font-[550] text-muted-foreground">
+            Temas de la cátedra <em className="font-normal text-faint not-italic">Filtran la matriz y cuentan para tu cruce</em>
+          </span>
+          <TopicToggles paperId={paper.id} />
+        </div>
         <Field
-          label="Tags"
-          hint="Comma separated"
+          label="Etiquetas"
+          hint="Separadas por coma"
           value={paper.tags.join(', ')}
           onCommit={(v) => patchPaper(paper.id, { tags: [...new Set(v.split(',').map((t) => t.trim().replace(/^#/, '')).filter(Boolean))] })}
         />
-        <Field label="Abstract" value={paper.abstract ?? ''} multiline rows={6} onCommit={(v) => edit({ abstract: v.trim() || undefined })} />
+        <Field label="Resumen" value={paper.abstract ?? ''} multiline rows={6} onCommit={(v) => edit({ abstract: v.trim() || undefined })} />
       </Collapsible>
 
       <section className="flex items-center gap-1 px-2.5 pt-2.5 pb-4">
         <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => patchPaper(paper.id, { starred: !paper.starred })}>
-          <Star className={cn(paper.starred && 'fill-hl-yellow text-hl-yellow')} /> {paper.starred ? 'Starred' : 'Star'}
+          <Star className={cn(paper.starred && 'fill-hl-yellow text-hl-yellow')} /> {paper.starred ? 'Destacado' : 'Destacar'}
         </Button>
         <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => window.api.papers.reveal(paper.fileName)}>
-          <FolderOpen /> Show in Finder
+          <FolderOpen /> Mostrar en el Finder
         </Button>
         <span className="flex-1" />
         <Button
           variant="ghost"
           size="xs"
           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => confirm(`Move “${paper.title}” to the Trash?`) && void deletePaper(paper.id)}
+          onClick={() => confirm(`¿Mover “${paper.title}” a la papelera?`) && void deletePaper(paper.id)}
         >
-          <Trash2 /> Delete
+          <Trash2 /> Eliminar
         </Button>
       </section>
     </div>
@@ -310,6 +346,98 @@ function Field({
         <Input className="h-8 text-[12.5px] md:text-[12.5px]" {...props} />
       )}
     </FieldShell>
+  )
+}
+
+/**
+ * Which printed page each PDF page is. APA cites the page printed on the
+ * article; the reader keeps the PDF's numbering, so citations store the PDF
+ * page and show the printed one.
+ */
+function PrintedPages({ paper }: { paper: Paper }) {
+  const pp = paper.printedPages
+  const offset = pp?.offset ?? null
+  // Anchor the example on the article's first page when the range says which one it is.
+  const start = parsePageRange(paper.pages)?.start
+  const anchor = offset != null && start && start - offset >= 1 && start - offset <= (paper.pageCount ?? Infinity) ? start - offset : Math.max(1, 1 - (offset ?? 0))
+  const [editing, setEditing] = useState(false)
+  const [pdf, setPdf] = useState('')
+  const [printed, setPrinted] = useState('')
+  if (paper.textStatus !== 'ready' && !pp) return null
+
+  const open = () => {
+    const at = paper.lastPage ?? anchor
+    setPdf(String(at))
+    setPrinted(offset != null ? String(at + offset) : '')
+    setEditing(true)
+  }
+  const n = Number(pdf)
+  const m = Number(printed)
+  const valid = Number.isInteger(n) && Number.isInteger(m) && n >= 1 && m >= 1 && (!paper.pageCount || n <= paper.pageCount)
+  const save = () => {
+    if (!valid) return
+    patchPaper(paper.id, { printedPages: { offset: m - n, source: 'manual' } })
+    setEditing(false)
+  }
+  const redetect = () => {
+    patchPaper(paper.id, { printedPages: undefined })
+    void detectPrintedPages(paper.id)
+    setEditing(false)
+  }
+
+  const summary =
+    offset == null ? (
+      <>No se encontró la página impresa: las citas usan la página del PDF.</>
+    ) : offset === 0 ? (
+      <>Las páginas del PDF coinciden con las impresas.</>
+    ) : (
+      <>
+        Las citas usan la página impresa: la <b className="font-medium text-foreground tabular-nums">{anchor}</b> del PDF es la{' '}
+        <b className="font-medium text-foreground tabular-nums">p. {anchor + offset}</b>.
+      </>
+    )
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="flex items-baseline gap-2 text-[11.5px] font-[550] text-muted-foreground">
+        Numeración de páginas
+        <em className="font-normal text-faint not-italic">{pp?.source === 'manual' ? 'La indicaste vos' : pp ? 'Detectada del PDF' : 'Sin revisar'}</em>
+      </span>
+      {editing ? (
+        <form
+          className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-muted-foreground"
+          onSubmit={(e) => {
+            e.preventDefault()
+            save()
+          }}
+        >
+          La página
+          <Input autoFocus aria-label="Página del PDF" inputMode="numeric" className="h-7 w-14 px-2 text-center text-[12.5px] tabular-nums md:text-[12.5px]" value={pdf} onChange={(e) => setPdf(e.target.value.trim())} />
+          del PDF es la página impresa
+          <Input aria-label="Página impresa" inputMode="numeric" className="h-7 w-16 px-2 text-center text-[12.5px] tabular-nums md:text-[12.5px]" value={printed} onChange={(e) => setPrinted(e.target.value.trim())} />
+          <span className="flex basis-full items-center gap-1.5 pt-0.5">
+            <Button type="submit" size="xs" className="h-7" disabled={!valid}>
+              Guardar
+            </Button>
+            <Button type="button" variant="ghost" size="xs" className="h-7 text-muted-foreground" onClick={() => setEditing(false)}>
+              Cancelar
+            </Button>
+            {pp?.source === 'manual' && (
+              <Button type="button" variant="ghost" size="xs" className="ml-auto h-7 text-muted-foreground" onClick={redetect}>
+                <RefreshCw /> Detectar de nuevo
+              </Button>
+            )}
+          </span>
+        </form>
+      ) : (
+        <p className="text-[12.5px] leading-snug text-muted-foreground">
+          {summary}{' '}
+          <button className="font-medium text-brand-text hover:underline" onClick={open}>
+            {offset == null ? 'Indicar' : 'Corregir'}
+          </button>
+        </p>
+      )}
+    </div>
   )
 }
 

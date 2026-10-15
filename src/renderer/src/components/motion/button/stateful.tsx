@@ -179,9 +179,9 @@ export const StatefulButton = forwardRef<HTMLButtonElement, StatefulButtonProps>
   {
     state = "idle",
     children,
-    loadingText = "Loading",
-    successText = "Done",
-    errorText = "Try again",
+    loadingText = "Cargando",
+    successText = "Listo",
+    errorText = "Reintentar",
     icon,
     disabled,
     ...rest

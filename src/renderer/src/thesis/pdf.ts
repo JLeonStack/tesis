@@ -1,6 +1,7 @@
 import logoUrl from '../assets/ucema-logo.png'
 import type { Block, Indent, ModelSection, Run, ThesisModel } from './model'
 import { escapeHtml as esc, italicHtml } from './references'
+import { figureHtml, tableHtml } from './tables'
 import { thesisFontCss } from './fonts'
 import { AUTHORIZATIONS, CAREER, UNIVERSITY, authRuns, coverBlanks, longDate, tutorLine } from './template'
 
@@ -35,6 +36,15 @@ h3 { font-style: italic; }
 blockquote { margin: 0 0 0 1.27cm; }
 .li { text-indent: -0.6cm; }
 a { color: inherit; text-decoration: none; }
+
+.apa-table, .apa-figure { margin: 0; break-inside: avoid; }
+.apa-title { margin: 0; }
+.apa-table table { width: 100%; border-collapse: collapse; line-height: 1.2; margin: 6pt 0; border-bottom: 0.75pt solid #000; }
+.apa-table th { font-weight: 400; text-align: center; border-top: 0.75pt solid #000; border-bottom: 0.75pt solid #000; padding: 3pt 4pt; }
+.apa-table td { padding: 3pt 4pt; text-align: left; }
+.apa-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.apa-svg svg { display: block; max-width: 100%; height: auto; margin: 6pt 0; }
+.apa-note { line-height: 2.44; }
 a.ext { text-decoration: underline; }
 
 .fn { float: footnote; font-size: 10pt; line-height: 1.2; text-indent: 0; font-weight: 400; font-style: normal; text-align: left; }
@@ -98,7 +108,7 @@ function blockHtml(b: Block): string {
       return '<div class="page-break"></div>'
     case 'toc':
       return (
-        '<p class="title">Tabla de Contenido</p>' +
+        `<p class="title">${esc(b.title)}</p>` +
         b.entries
           .map(
             (e) =>
@@ -110,6 +120,10 @@ function blockHtml(b: Block): string {
       )
     case 'refs':
       return b.entries.map((r) => `<p class="hanging">${runsHtml(r)}</p>`).join('')
+    case 'table':
+      return tableHtml(b.n, b.table)
+    case 'figure':
+      return figureHtml(b.n, b.figure)
   }
 }
 

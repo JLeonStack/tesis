@@ -99,10 +99,10 @@ export class CodexBridge {
   private onExit(): void {
     this.proc = null
     this.ready = null
-    for (const p of this.pending.values()) p.reject(new Error(this.lastError || 'Codex stopped unexpectedly'))
+    for (const p of this.pending.values()) p.reject(new Error(this.lastError || 'Codex se detuvo de forma inesperada'))
     this.pending.clear()
     for (const [chatId, t] of this.threads) {
-      if (t.turnId) this.emit({ type: 'error', chatId, message: 'The assistant process stopped. Try again.' })
+      if (t.turnId) this.emit({ type: 'error', chatId, message: 'El proceso del asistente se detuvo. Probá de nuevo.' })
     }
     this.threads.clear()
     this.threadToChat.clear()
@@ -124,7 +124,7 @@ export class CodexBridge {
 
   private request<T = any>(method: string, params: object): Promise<T> {
     return new Promise((resolve, reject) => {
-      if (!this.proc) return reject(new Error('Codex is not running'))
+      if (!this.proc) return reject(new Error('Codex no está corriendo'))
       const id = ++this.seq
       this.pending.set(id, { resolve, reject })
       this.write({ id, method, params })
@@ -143,7 +143,7 @@ export class CodexBridge {
       const p = this.pending.get(msg.id)
       if (!p) return
       this.pending.delete(msg.id)
-      if (msg.error) p.reject(new Error(msg.error.message ?? 'Request failed'))
+      if (msg.error) p.reject(new Error(msg.error.message ?? 'La consulta falló'))
       else p.resolve(msg.result)
       return
     }
@@ -179,7 +179,7 @@ export class CodexBridge {
             .join('\n\n') || t.text
         t.turnId = undefined
         t.text = ''
-        const error = turn.status === 'failed' ? turn.error?.message ?? 'The request failed.' : undefined
+        const error = turn.status === 'failed' ? turn.error?.message ?? 'La consulta falló.' : undefined
         const waiter = this.oneShot.get(chatId)
         if (waiter) {
           this.oneShot.delete(chatId)
@@ -194,7 +194,7 @@ export class CodexBridge {
         if (p.willRetry) break
         const chatId = this.threadToChat.get(p.threadId)
         if (chatId && !this.oneShot.has(chatId)) {
-          this.emit({ type: 'error', chatId, message: friendlyError(p.error?.message ?? 'Unknown error') })
+          this.emit({ type: 'error', chatId, message: friendlyError(p.error?.message ?? 'Error desconocido') })
         }
         break
       }
@@ -289,7 +289,7 @@ export class CodexBridge {
       this.emit({
         type: 'error',
         chatId: opts.chatId,
-        message: msg === 'CODEX_NOT_FOUND' ? 'Codex CLI not found. Install it with “npm i -g @openai/codex”.' : friendlyError(msg)
+        message: msg === 'CODEX_NOT_FOUND' ? 'No se encontró el Codex CLI. Instalalo con “npm i -g @openai/codex”.' : friendlyError(msg)
       })
     }
   }
@@ -343,7 +343,7 @@ export class CodexBridge {
       chatId,
       {
         chatId,
-        instructions: opts.instructions ?? 'You extract structured data precisely. Never invent values; use empty strings when unknown.',
+        instructions: opts.instructions ?? 'Extraés datos estructurados con precisión. Nunca inventes valores; usá cadenas vacías cuando no los sepas.',
         model: opts.model
       },
       'oneshot'
@@ -362,8 +362,8 @@ export class CodexBridge {
 }
 
 function friendlyError(msg: string): string {
-  if (/usage limit|rate limit|429/i.test(msg)) return 'You reached your ChatGPT usage limit for now. Try again later.'
-  if (/unauthorized|401|login|auth/i.test(msg)) return 'Your ChatGPT session expired. Reconnect from Settings.'
-  if (/network|ENOTFOUND|ECONN|timed out|stream disconnected/i.test(msg)) return 'Network problem reaching ChatGPT. Check your connection.'
+  if (/usage limit|rate limit|429/i.test(msg)) return 'Por ahora alcanzaste tu límite de uso de ChatGPT. Probá más tarde.'
+  if (/unauthorized|401|login|auth/i.test(msg)) return 'Tu sesión de ChatGPT expiró. Reconectate desde Ajustes.'
+  if (/network|ENOTFOUND|ECONN|timed out|stream disconnected/i.test(msg)) return 'Hubo un problema de red al contactar ChatGPT. Revisá tu conexión.'
   return msg
 }

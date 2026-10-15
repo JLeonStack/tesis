@@ -94,10 +94,10 @@ export function insertIntoNote(noteId: string, content: JSONContent[], paperId?:
   }
   const s = useStore.getState()
   const visible = s.sideNoteId === noteId || s.active === `note:${noteId}`
-  const title = s.notes[noteId]?.title || 'Untitled note'
+  const title = s.notes[noteId]?.title || 'Nota sin título'
   toast(
-    `Added to “${title.length > 40 ? `${title.slice(0, 40)}…` : title}”`,
-    visible ? undefined : { label: 'Open', run: () => openTab({ kind: 'note', id: noteId }) }
+    `Agregado a «${title.length > 40 ? `${title.slice(0, 40)}…` : title}»`,
+    visible ? undefined : { label: 'Abrir', run: () => openTab({ kind: 'note', id: noteId }) }
   )
 }
 
@@ -168,7 +168,7 @@ export function autoQuote(paperId: string, page: number, text: string, annotatio
   }
 }
 
-const translationFailed = debounce(() => toast('Couldn’t translate the quote; the original is in your note', undefined, { status: 'error' }), 500)
+const translationFailed = debounce(() => toast('No se pudo traducir la cita textual; el original quedó en tu nota', undefined, { status: 'error' }), 500)
 
 /** Swaps a quote for its finished version, wherever the note is: open, about to open, or saved. */
 function fillQuote(noteId: string, quoteId: string, next: JSONContent): void {

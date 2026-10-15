@@ -1,7 +1,16 @@
 import { useMemo } from 'react'
 import { motion } from 'motion/react'
-import { ArrowRight, Brain, Check, FileText, NotebookPen, Sparkles, Upload } from 'lucide-react'
-import { createNote, openRecall, openTab, providerLabel, useStore } from '../store'
+import { ArrowRight, Brain, CalendarCheck, CalendarClock, CalendarDays, ChartColumn, Check, Crosshair, FileText, ListPlus, NotebookPen, Sparkles, Upload } from 'lucide-react'
+import { Kbd } from '@/components/ui/kbd'
+import { AGENT_TAB, askAssistant, createNote, openAgent, openAnalysis, openRecall, openResearch, openTab, openTasks, providerLabel, tabKey, useStore } from '../store'
+import { PLAN_TODAY, WEEKLY_REVIEW } from '../agent/context'
+import { ProgressPanel } from '../progress/ProgressPanel'
+import { PHASES, deliveryLabel, fmtDelivery, frameworkChecks, nextDelivery, pairLabel } from '../research/framework'
+import { changeCount, createPlan, planChanges } from '../research/plan'
+import { bucketOf, compareTasks, dueLabel, endOf, today } from '../tasks/dates'
+import { TaskCheck } from '../tasks/TaskCheck'
+import { StartPomodoroButton, TaskPomodoroChip } from '../pomodoro/Pomodoro'
+import { useFocusByTask } from '../pomodoro/timer'
 import { importPapers } from '../lib/ingest'
 import { authorLine } from '../lib/citation'
 import { mod, timeAgo } from '../lib/util'
@@ -43,18 +52,29 @@ export function Home() {
       .map((paper) => ({ paper, last: undefined }))
     return [...due, ...fresh].slice(0, 6)
   }, [recalls, papers])
+  // What's late, due today or this week.
+  const tasks = useStore((s) => s.tasks)
+  const focus = useFocusByTask()
+  const upcoming = useMemo(() => {
+    const now = today()
+    return Object.values(tasks)
+      .filter((t) => ['overdue', 'today', 'week'].includes(bucketOf(t, now)))
+      .sort(compareTasks)
+  }, [tasks])
   const recentPapers = useMemo(() => Object.values(papers).sort((a, b) => b.addedAt - a.addedAt).slice(0, 5), [papers])
   const recentNotes = useMemo(() => Object.values(notes).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5), [notes])
 
   // Goal-gradient: a short, visible path to a working setup.
   const steps = [
-    { done: !!settings.thesisTitle.trim(), label: 'Describe your thesis', hint: 'The assistant tailors every answer to it', run: () => useStore.setState({ settingsOpen: true }) },
-    { done: Object.keys(papers).length > 0, label: 'Import your first papers', hint: 'Drop PDFs anywhere in the window', run: () => void importPapers() },
-    { done: !!account?.connected, label: `Connect ${providerLabel(settings)}`, hint: 'Uses your existing subscription', run: () => useStore.setState({ settingsOpen: true }) }
+    { done: settings.research.constructs.length === 2, label: 'Elegí tus 2 temas de la cátedra', hint: 'De los 5 del taller, desde la perspectiva del colaborador', run: openResearch },
+    { done: !!settings.thesisTitle.trim(), label: 'Describí tu tesis', hint: 'El asistente adapta cada respuesta a ella', run: openResearch },
+    { done: Object.keys(papers).length > 0, label: 'Importá tus primeros papers', hint: 'Soltá PDF en cualquier parte de la ventana', run: () => void importPapers() },
+    { done: !!settings.analysis.datasetId, label: 'Importá la base de datos de la cátedra', hint: 'El .xlsx de Qualtrics: la app puntúa las escalas y calcula el análisis', run: openAnalysis },
+    { done: !!account?.connected, label: `Conectar ${providerLabel(settings)}`, hint: 'Usá tu suscripción actual', run: () => useStore.setState({ settingsOpen: true }) }
   ]
   const doneCount = steps.filter((s) => s.done).length
   const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 19 ? 'Good afternoon' : 'Good evening'
+  const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'
 
   return (
     <div className="drag relative isolate min-h-0 flex-1 overflow-y-auto bg-background">
@@ -63,18 +83,60 @@ export function Home() {
         <motion.header {...rise(0)}>
           <h1 className="font-heading text-[34px] font-medium tracking-tight">{greeting}</h1>
           <p className="mt-1.5 text-[15px] text-muted-foreground">
-            {settings.thesisTitle.trim() || 'Your thesis workspace. Read, annotate, write.'}
+            {settings.thesisTitle.trim() || 'Tu espacio de tesis. Leé, anotá, escribí.'}
           </p>
         </motion.header>
+
+        {/* One place to ask anything or get something done (Jakob's law: a prompt box). */}
+        <motion.button
+          {...rise(1)}
+          onClick={() => openAgent()}
+          className="-mt-3 flex h-11 items-center gap-2.5 rounded-xl border bg-card px-3.5 text-left text-muted-foreground shadow-xs transition-[box-shadow,border-color] hover:border-brand/40 hover:shadow-md"
+        >
+          <Sparkles className="size-4 text-brand" />
+          <span className="flex-1 text-[13.5px]">Preguntale al asistente o pedile algo: qué leer, armar una nota, sumar un paper a las candidatas…</span>
+          <Kbd>{mod}⌥A</Kbd>
+        </motion.button>
+
+        <motion.div {...rise(1)} className="-mt-5 flex flex-wrap gap-2">
+          <button
+            onClick={() => askAssistant({ chatId: tabKey(AGENT_TAB), prefill: PLAN_TODAY, autoSend: true })}
+            className="flex h-8 items-center gap-1.5 rounded-lg border bg-card px-2.5 text-[12.5px] font-medium shadow-xs transition-colors hover:border-brand/40 hover:bg-brand-soft"
+            title="El asistente mira tu plan, lo vencido y tu ritmo, propone qué hacer hoy y arranca el pomodoro"
+          >
+            <CalendarCheck className="size-3.5 text-brand" /> Plan de hoy
+          </button>
+          <button
+            onClick={() => askAssistant({ chatId: tabKey(AGENT_TAB), prefill: WEEKLY_REVIEW, autoSend: true })}
+            className="flex h-8 items-center gap-1.5 rounded-lg border bg-card px-2.5 text-[12.5px] font-medium shadow-xs transition-colors hover:border-brand/40 hover:bg-brand-soft"
+            title="Qué avanzaste, qué se atrasó y cómo ajustar el plan para llegar"
+          >
+            <CalendarDays className="size-3.5 text-bloom-pink" /> Revisión semanal
+          </button>
+          <button
+            onClick={openAnalysis}
+            className="flex h-8 items-center gap-1.5 rounded-lg border bg-card px-2.5 text-[12.5px] font-medium shadow-xs transition-colors hover:border-brand/40 hover:bg-accent"
+          >
+            <ChartColumn className="size-3.5 text-bloom-amber" /> Análisis de datos
+          </button>
+        </motion.div>
+
+        <motion.div {...rise(1)}>
+          <ThesisStatus />
+        </motion.div>
+
+        <motion.div {...rise(2)}>
+          <ProgressPanel />
+        </motion.div>
 
         {doneCount < steps.length && (
           <motion.div {...rise(1)} className="rounded-xl border bg-card px-4 pt-2.5 pb-2 shadow-xs">
             <Collapsible
               id="home.setup"
               variant="title"
-              title="Get set up"
-              count={`${doneCount} of ${steps.length}`}
-              summary={`Next: ${steps.find((x) => !x.done)?.label}`}
+              title="Configuración inicial"
+              count={`${doneCount} de ${steps.length}`}
+              summary={`Siguiente: ${steps.find((x) => !x.done)?.label}`}
             >
             <div className="mt-1.5 mb-3 h-1 overflow-hidden rounded-full bg-muted">
               <motion.div
@@ -129,7 +191,7 @@ export function Home() {
                     className="flex flex-col gap-1 rounded-xl border bg-card p-3.5 text-left shadow-xs transition-shadow hover:shadow-md"
                   >
                     <span className="line-clamp-2 font-heading text-[15px] leading-snug font-medium">{p.title}</span>
-                    <span className="text-[11.5px] text-muted-foreground">{authorLine(p, 2) || 'Unknown author'}</span>
+                    <span className="text-[11.5px] text-muted-foreground">{authorLine(p, 2) || 'Autor desconocido'}</span>
                     <span className="mt-2 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
                       <Brain className="size-3.5 text-bloom-lilac" />
                       {last ? `Toca repasar · ${Math.round(last.score * 100)}% la última vez` : 'Terminado, nunca comprobado'}
@@ -141,9 +203,58 @@ export function Home() {
           </motion.div>
         )}
 
+        {upcoming.length > 0 && (
+          <motion.div {...rise(2)}>
+            <Collapsible
+              id="home.tasks"
+              group="home"
+              title="Tareas"
+              marker="bg-bloom-pink"
+              count={upcoming.length}
+              summary="Vencidas, para hoy y para esta semana"
+              actions={
+                <button onClick={() => openTasks()} className="text-xs text-muted-foreground hover:text-foreground">
+                  Ver todas
+                </button>
+              }
+              contentClassName="pt-1"
+            >
+              <div className="flex flex-col">
+                {upcoming.slice(0, 6).map((t) => {
+                  const end = endOf(t)!
+                  const { text, tone } = dueLabel(end)
+                  return (
+                    <div
+                      key={t.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openTasks(t.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && openTasks(t.id)}
+                      className="group flex h-9 items-center gap-2.5 rounded-lg px-2 transition-colors hover:bg-accent"
+                    >
+                      <TaskCheck task={t} />
+                      <span className="min-w-0 flex-1 truncate text-[13px]">{t.title || 'Sin título'}</span>
+                      <StartPomodoroButton task={t} />
+                      <TaskPomodoroChip task={t} focus={focus.get(t.id)} />
+                      <span className={cn('flex items-center gap-1 text-[11.5px]', tone === 'overdue' ? 'font-medium text-destructive' : tone === 'soon' ? 'font-medium' : 'text-muted-foreground')}>
+                        <CalendarDays className="size-3" /> {text}
+                      </span>
+                    </div>
+                  )
+                })}
+                {upcoming.length > 6 && (
+                  <button onClick={() => openTasks()} className="px-2 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground">
+                    y {upcoming.length - 6} más…
+                  </button>
+                )}
+              </div>
+            </Collapsible>
+          </motion.div>
+        )}
+
         {reading.length > 0 && (
           <motion.div {...rise(2)}>
-            <Collapsible id="home.reading" group="home" title="Continue reading" marker="bg-status-reading" count={reading.length} contentClassName="pt-1.5">
+            <Collapsible id="home.reading" group="home" title="Seguir leyendo" marker="bg-status-reading" count={reading.length} contentClassName="pt-1.5">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
               {reading.map((p) => {
                 const pct = p.pageCount ? Math.round(((p.maxPage ?? p.lastPage ?? 1) / p.pageCount) * 100) : 0
@@ -157,12 +268,12 @@ export function Home() {
                     className="flex flex-col gap-1 rounded-xl border bg-card p-3.5 text-left shadow-xs transition-shadow hover:shadow-md"
                   >
                     <span className="line-clamp-2 font-heading text-[15px] leading-snug font-medium">{p.title}</span>
-                    <span className="text-[11.5px] text-muted-foreground">{authorLine(p, 2) || 'Unknown author'}</span>
+                    <span className="text-[11.5px] text-muted-foreground">{authorLine(p, 2) || 'Autor desconocido'}</span>
                     <span className="mt-2 mb-1 h-[3px] overflow-hidden rounded-full bg-muted">
                       <span className="block h-full rounded-full bg-status-reading" style={{ width: `${pct}%` }} />
                     </span>
                     <span className="text-[11.5px] text-muted-foreground tabular-nums">
-                      Page {p.lastPage} of {p.pageCount} · {pct}%
+                      Página {p.lastPage} de {p.pageCount} · {pct}%
                     </span>
                   </motion.button>
                 )
@@ -173,28 +284,28 @@ export function Home() {
         )}
 
         <motion.div {...rise(3)} className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-          <Collapsible id="home.papers" group="home" title="Recent papers" marker="bg-kind-paper" count={recentPapers.length || undefined} contentClassName="pt-1.5">
+          <Collapsible id="home.papers" group="home" title="Papers recientes" marker="bg-kind-paper" count={recentPapers.length || undefined} contentClassName="pt-1.5">
             {recentPapers.length ? (
               <RecentList
                 items={recentPapers.map((p) => ({ id: p.id, icon: <FileText className="text-kind-paper" />, title: p.title, meta: p.year ?? '', open: () => openTab({ kind: 'paper', id: p.id }) }))}
               />
             ) : (
-              <DropCard icon={<Upload />} title="Import PDFs" hint={`or drop them here · ${mod}O`} onClick={() => void importPapers()} />
+              <DropCard icon={<Upload />} title="Importar PDF" hint={`o soltalos acá · ${mod}O`} onClick={() => void importPapers()} />
             )}
           </Collapsible>
-          <Collapsible id="home.notes" group="home" title="Recent notes" marker="bg-kind-note" count={recentNotes.length || undefined} contentClassName="pt-1.5">
+          <Collapsible id="home.notes" group="home" title="Notas recientes" marker="bg-kind-note" count={recentNotes.length || undefined} contentClassName="pt-1.5">
             {recentNotes.length ? (
               <RecentList
-                items={recentNotes.map((n) => ({ id: n.id, icon: <NotebookPen className="text-kind-note" />, title: n.title || 'Untitled note', meta: timeAgo(n.updatedAt), open: () => openTab({ kind: 'note', id: n.id }) }))}
+                items={recentNotes.map((n) => ({ id: n.id, icon: <NotebookPen className="text-kind-note" />, title: n.title || 'Nota sin título', meta: timeAgo(n.updatedAt), open: () => openTab({ kind: 'note', id: n.id }) }))}
               />
             ) : (
-              <DropCard icon={<NotebookPen />} title="Start a note" hint={`Outline chapters, collect quotes · ${mod}N`} onClick={() => createNote()} />
+              <DropCard icon={<NotebookPen />} title="Crear una nota" hint={`Esquematizá capítulos, juntá citas · ${mod}N`} onClick={() => createNote()} />
             )}
           </Collapsible>
         </motion.div>
 
         <motion.p {...rise(4)} className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Sparkles className="size-3.5 text-brand" /> Tip: select text in a paper to highlight it, send it to a note, or ask the assistant about it.
+          <Sparkles className="size-3.5 text-brand" /> Consejo: seleccioná texto en un paper para resaltarlo, mandarlo a una nota o preguntarle al asistente sobre él.
         </motion.p>
       </div>
     </div>
@@ -227,5 +338,67 @@ function DropCard({ icon, title, hint, onClick }: { icon: React.ReactNode; title
       <strong className="font-[550] text-foreground">{title}</strong>
       <span className="text-xs">{hint}</span>
     </button>
+  )
+}
+
+/** Where the thesis stands: the topics crossed, the deadline, and the next stage of the plan. */
+function ThesisStatus() {
+  const settings = useStore((s) => s.settings)
+  const tasks = useStore((s) => s.tasks)
+  const r = settings.research
+  const delivery = nextDelivery()
+  const { issues, next, missing } = useMemo(() => {
+    const titles = new Map(PHASES.map((p) => [p.title, p]))
+    const phaseIds = new Set(PHASES.map((p) => p.id))
+    const next = Object.values(tasks)
+      .filter((t) => (t.phaseId ? phaseIds.has(t.phaseId) : titles.has(t.title)) && t.status !== 'done')
+      .sort((a, b) => (a.start ?? a.due ?? '').localeCompare(b.start ?? b.due ?? ''))[0]
+    return {
+      issues: frameworkChecks(settings).filter((c) => !c.ok && c.severity !== 'info').length,
+      next,
+      missing: changeCount(planChanges(settings, Object.values(tasks)))
+    }
+  }, [settings, tasks])
+  const pair = r.constructs.length === 2 ? pairLabel(r) : ''
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <button onClick={openResearch} className="flex flex-col gap-1 rounded-xl border bg-card p-3.5 text-left shadow-xs transition-shadow hover:shadow-md">
+        <span className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+          <Crosshair className="size-3.5 text-bloom-teal" /> Marco de investigación
+        </span>
+        <strong className={cn('text-[14px] leading-snug font-[600]', !pair && 'text-destructive')}>{pair || 'Elegí tus 2 temas'}</strong>
+        <span className="text-[11.5px] text-muted-foreground">{issues ? `${issues} punto${issues > 1 ? 's' : ''} para revisar` : 'Todo en regla con la cátedra'}</span>
+      </button>
+      <div className="flex flex-col gap-1 rounded-xl border bg-card p-3.5 shadow-xs">
+        <span className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+          <CalendarClock className="size-3.5 text-bloom-pink" /> {delivery ? deliveryLabel(delivery.n) : 'Entregas del taller'}
+        </span>
+        <strong className={cn('text-[14px] font-[600] tabular-nums', delivery && delivery.left <= 7 && 'text-destructive')}>
+          {!delivery ? 'Todas entregadas' : delivery.left ? `Faltan ${delivery.left} día${delivery.left === 1 ? '' : 's'}` : 'Es hoy'}
+        </strong>
+        {delivery && <span className="text-[11.5px] text-muted-foreground first-letter:uppercase">{fmtDelivery(delivery.date)}</span>}
+      </div>
+      {next ? (
+        <button onClick={() => openTasks(next.id)} className="flex flex-col gap-1 rounded-xl border bg-card p-3.5 text-left shadow-xs transition-shadow hover:shadow-md">
+          <span className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+            <ArrowRight className="size-3.5 text-brand" /> Etapa actual
+          </span>
+          <strong className="line-clamp-2 text-[14px] leading-snug font-[600]">{next.title}</strong>
+          {next.due && <span className="text-[11.5px] text-muted-foreground">{dueLabel(next.due).text}</span>}
+        </button>
+      ) : (
+        <button
+          onClick={() => createPlan().count > 0 && openTasks()}
+          disabled={!missing || !delivery}
+          className="flex flex-col gap-1 rounded-xl border border-dashed bg-card p-3.5 text-left transition-colors hover:border-brand/40 hover:bg-brand-soft disabled:opacity-60"
+        >
+          <span className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+            <ListPlus className="size-3.5 text-brand" /> Plan de la tesis
+          </span>
+          <strong className="text-[14px] font-[600]">{missing ? 'Armar el plan por entregas' : 'Plan completo'}</strong>
+          <span className="text-[11.5px] text-muted-foreground">Etapas de cada entrega del taller, con pomodoros e hitos del tutor</span>
+        </button>
+      )}
+    </div>
   )
 }

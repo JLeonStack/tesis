@@ -3,7 +3,7 @@ import { motion } from 'motion/react'
 import { Copy, NotebookPen, Sparkles, Trash2 } from 'lucide-react'
 import type { HighlightColor } from '@shared/types'
 import { askAssistant, deleteAnnotation, saveAnnotation, useStore } from '../store'
-import { COLORS, COLOR_VAR } from './SelectionToolbar'
+import { COLORS, COLOR_LABELS, COLOR_VAR } from './SelectionToolbar'
 import { addQuoteToNote } from '../editor/noteBridge'
 import { inText } from '../lib/citation'
 import { copyText } from '../lib/exporting'
@@ -84,12 +84,12 @@ export function AnnotationPopover({
       <ColorSelector value={a.color} onValueChange={(c) => saveAnnotation({ ...a, color: c as HighlightColor, updatedAt: Date.now() })}>
         <ColorSelectorList className="gap-1.5 p-0.5">
           {COLORS.map((c) => (
-            <ColorSelectorItem key={c} value={c} color={COLOR_VAR[c]} label={c} className="size-7 border-0 bg-transparent [&>span:last-child]:size-4" />
+            <ColorSelectorItem key={c} value={c} color={COLOR_VAR[c]} label={COLOR_LABELS[c]} className="size-7 border-0 bg-transparent [&>span:last-child]:size-4" />
           ))}
         </ColorSelectorList>
       </ColorSelector>
       <Textarea
-        placeholder="Add a comment…"
+        placeholder="Agregá un comentario…"
         value={comment}
         autoFocus={focusComment}
         className="min-h-14 resize-none text-[13px]"
@@ -100,7 +100,7 @@ export function AnnotationPopover({
       />
       <div className="-mx-1 -mb-1 flex items-center gap-0.5">
         <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => (addQuoteToNote(a.paperId, a.page, a.text, a.id), onClose())}>
-          <NotebookPen /> Note
+          <NotebookPen /> Nota
         </Button>
         <Button
           variant="ghost"
@@ -111,17 +111,17 @@ export function AnnotationPopover({
             onClose()
           }}
         >
-          <Sparkles /> Ask
+          <Sparkles /> Preguntar
         </Button>
         <IconButton
           size="icon-xs"
-          label="Copy quote with citation"
-          onClick={() => paper && void copyText(`“${a.text}” ${inText(paper, style, a.page)}`, 'Quote copied with citation')}
+          label="Copiar la cita textual con la referencia"
+          onClick={() => paper && void copyText(`“${a.text}” ${inText(paper, style, a.page)}`, 'Cita textual copiada con la referencia')}
         >
           <Copy />
         </IconButton>
         <span className="flex-1" />
-        <IconButton size="icon-xs" label="Delete highlight" className="hover:text-destructive" onClick={() => (deleteAnnotation(a.id), onClose())}>
+        <IconButton size="icon-xs" label="Eliminar el resaltado" className="hover:text-destructive" onClick={() => (deleteAnnotation(a.id), onClose())}>
           <Trash2 />
         </IconButton>
       </div>
